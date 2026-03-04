@@ -46,5 +46,8 @@ describe('mcp-js-reverse-playbook docs contract', () => {
     assert.ok(fallbacks.includes('local rebuild'));
     assert.ok(taskArtifacts.includes('timeline.jsonl'));
     assert.ok(localRebuild.includes('env/entry.js'));
+    assert.ok(skill.includes('inject_preload_script'));
+    assert.ok(automationEntry.includes('inject_preload_script'));
+    assert.ok(automationEntry.includes('首屏初始化'));
   });
 });

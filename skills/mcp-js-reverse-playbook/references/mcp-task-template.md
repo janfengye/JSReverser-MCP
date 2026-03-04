@@ -11,6 +11,7 @@
    - 设定目标边界：`targetKeywords`、`targetUrlPatterns`、`targetFunctionNames`、`targetActionDescription`
 
 2. 运行时采样
+   - 如果目标在首屏初始化或首次请求前生成：先 `inject_preload_script`
    - `create_hook(fetch/xhr)` + `inject_hook`
    - 触发动作
    - `get_hook_data(summary)`

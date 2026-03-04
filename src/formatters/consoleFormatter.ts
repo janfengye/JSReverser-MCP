@@ -16,6 +16,12 @@ export interface ConsoleMessageData {
   args?: string[];
 }
 
+interface SerializedErrorLike {
+  message?: string;
+  stack?: string;
+  cause?: SerializedErrorLike;
+}
+
 // The short format for a console message, based on a previous format.
 export function formatConsoleEventShort(msg: ConsoleMessageData): string {
   if (msg.type === 'issue') {
@@ -50,6 +56,37 @@ function formatArg(arg: unknown) {
   return typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
 }
 
+function tryParseSerializedError(arg: string): SerializedErrorLike | undefined {
+  try {
+    const parsed = JSON.parse(arg) as SerializedErrorLike;
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      (typeof parsed.message === 'string' || typeof parsed.stack === 'string')
+    ) {
+      return parsed;
+    }
+  } catch {
+    // Ignore non-JSON arguments.
+  }
+  return undefined;
+}
+
+function formatErrorChain(error: SerializedErrorLike, depth = 0): string[] {
+  const prefix = depth === 0 ? 'Error' : `${'  '.repeat(depth - 1)}Cause`;
+  const lines = [`${prefix}: ${error.message ?? '<unknown error>'}`];
+  if (error.stack) {
+    lines.push(`${'  '.repeat(depth)}Stack:`);
+    for (const line of error.stack.split('\n')) {
+      lines.push(`${'  '.repeat(depth)}${line}`);
+    }
+  }
+  if (error.cause) {
+    lines.push(...formatErrorChain(error.cause, depth + 1));
+  }
+  return lines;
+}
+
 function formatArgs(consoleData: ConsoleMessageData): string {
   const args = getArgs(consoleData);
 
@@ -61,6 +98,12 @@ function formatArgs(consoleData: ConsoleMessageData): string {
 
   for (const [key, arg] of args.entries()) {
     result.push(`Arg #${key}: ${formatArg(arg)}`);
+    if (typeof arg === 'string') {
+      const parsedError = tryParseSerializedError(arg);
+      if (parsedError) {
+        result.push(...formatErrorChain(parsedError));
+      }
+    }
   }
 
   return result.join('\n');

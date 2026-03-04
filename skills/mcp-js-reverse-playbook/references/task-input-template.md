@@ -4,6 +4,7 @@
 - 目标字段 / `targetKeywords`
 - 目标函数 / `targetFunctionNames`
 - 触发动作 / `targetActionDescription`
+- 是否涉及首屏初始化 / 首次请求前逻辑
 - 登录要求
 - 成功判定
 - 目标时间窗
