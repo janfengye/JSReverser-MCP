@@ -24,6 +24,8 @@ describe('reverse workflow docs', () => {
     const updatePromptTemplate = await readRepoFile('docs/reverse-update-prompt-template.md');
     const reverseReportTemplate = await readRepoFile('docs/reverse-report-template.md');
     const algorithmUpgradeTemplate = await readRepoFile('docs/algorithm-upgrade-template.md');
+    const toolReference = await readRepoFile('docs/tool-reference.md');
+    const outputContract = await readRepoFile('skills/mcp-js-reverse-playbook/references/output-contract.md');
 
     assert.ok(readme.includes('task artifact'));
     assert.ok(readme.includes('local rebuild'));
@@ -36,6 +38,7 @@ describe('reverse workflow docs', () => {
     assert.ok(readme.includes('reverse-update-prompt-template'));
     assert.ok(readme.includes('reverse-report-template'));
     assert.ok(codexDoc.includes('targetActionDescription'));
+    assert.ok(codexDoc.includes('targetContext'));
     assert.ok(updatePromptTemplate.includes('first divergence'));
     assert.ok(updatePromptTemplate.includes('不要猜'));
     assert.ok(reverseReportTemplate.includes('目标接口与字段'));
@@ -43,5 +46,9 @@ describe('reverse workflow docs', () => {
     assert.ok(algorithmUpgradeTemplate.includes('first divergence'));
     assert.ok(algorithmUpgradeTemplate.includes('targetFunctionNames'));
     assert.ok(algorithmUpgradeTemplate.includes('env rebuild'));
+    assert.ok(toolReference.includes('targetActionDescription'));
+    assert.ok(toolReference.includes('targetFunctionNames'));
+    assert.ok(outputContract.includes('targetContext'));
+    assert.ok(outputContract.includes('targetActionDescription'));
   });
 });

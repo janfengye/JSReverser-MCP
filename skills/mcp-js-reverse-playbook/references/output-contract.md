@@ -7,4 +7,5 @@
 - 补丁与回滚步骤
 - 置信度与不确定性
 - task artifact 路径
+- targetContext（至少包含 `targetActionDescription` 或其他目标边界）
 - 本地补环境状态（已补/未补）

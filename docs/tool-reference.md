@@ -590,6 +590,10 @@ so returned values have to JSON-serializable.
 - `targetUrl`
 - `goal`
 - `channel`
+- `targetKeywords`
+- `targetUrlPatterns`
+- `targetFunctionNames`
+- `targetActionDescription`
 - `entry`
 
 ### `remove_breakpoint`
@@ -747,4 +751,3 @@ so returned values have to JSON-serializable.
 **Parameters:**
 
 - `hookId`
-
