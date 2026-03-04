@@ -61,6 +61,11 @@ interface TestPageHarness {
   evaluate(fnHandle: unknown): Promise<string>;
 }
 
+interface TestFrameHarness {
+  evaluateHandle(script: string): Promise<{ dispose(): Promise<void> }>;
+  evaluate(fn: unknown, arg: unknown): Promise<string>;
+}
+
 interface PageToolContextHarness {
   getPageByIdx(idx: number): TestPageHarness;
   selectPage(page: TestPageHarness): void;
@@ -82,6 +87,7 @@ interface ScreenshotContextHarness {
 
 interface ScriptContextHarness {
   getSelectedPage(): TestPageHarness;
+  getSelectedFrame(): TestFrameHarness;
   waitForEventsAfterAction(action: () => Promise<void>): Promise<void>;
 }
 
@@ -120,6 +126,7 @@ describe('tools extended coverage', () => {
     const response = makeResponse();
 
     const selected = { idx: -1 };
+    const syncedPages: TestPageHarness[] = [];
     const page: TestPageHarness = {
       currentUrl: 'https://now.example',
       bringToFront: async () => {
@@ -147,45 +154,58 @@ describe('tools extended coverage', () => {
       getSelectedPage: () => page,
     };
 
-    await listPages.handler({ params: {} }, response as unknown as Parameters<typeof listPages.handler>[1], context as unknown as Parameters<typeof listPages.handler>[2]);
-    assert.strictEqual(response.state.includePages, true);
-
-    await selectPage.handler({ params: { pageIdx: 0 } }, response as unknown as Parameters<typeof selectPage.handler>[1], context as unknown as Parameters<typeof selectPage.handler>[2]);
-    assert.strictEqual(selected.idx, 2);
-
-    await newPage.handler({ params: { url: 'https://a.com' } }, response as unknown as Parameters<typeof newPage.handler>[1], context as unknown as Parameters<typeof newPage.handler>[2]);
-    assert.strictEqual(response.state.includePages, true);
-
-    await assert.rejects(async () => {
-      await navigatePage.handler({ params: {} }, response as unknown as Parameters<typeof navigatePage.handler>[1], context as unknown as Parameters<typeof navigatePage.handler>[2]);
-    });
-
-    await navigatePage.handler({ params: { url: 'https://b.com' } }, response as unknown as Parameters<typeof navigatePage.handler>[1], context as unknown as Parameters<typeof navigatePage.handler>[2]);
-    assert.ok(response.lines.some((x) => x.includes('Successfully navigated')));
-
-    page.goto = async () => {
-      throw new Error('goto failed');
+    const runtime = getJSHookRuntime() as unknown as {
+      syncPageContext?: (page: TestPageHarness, frame?: unknown) => void;
     };
-    await navigatePage.handler({ params: { type: 'url', url: 'https://c.com' } }, response as unknown as Parameters<typeof navigatePage.handler>[1], context as unknown as Parameters<typeof navigatePage.handler>[2]);
-    assert.ok(response.lines.some((x) => x.includes('Unable to navigate in')));
-
-    page.goBack = async () => {
-      throw new Error('back failed');
+    const originalSyncPageContext = runtime.syncPageContext;
+    runtime.syncPageContext = (selectedPage: TestPageHarness) => {
+      syncedPages.push(selectedPage);
     };
-    await navigatePage.handler({ params: { type: 'back' } }, response as unknown as Parameters<typeof navigatePage.handler>[1], context as unknown as Parameters<typeof navigatePage.handler>[2]);
-    assert.ok(response.lines.some((x) => x.includes('Unable to navigate back')));
 
-    page.goForward = async () => {
-      throw new Error('forward failed');
-    };
-    await navigatePage.handler({ params: { type: 'forward' } }, response as unknown as Parameters<typeof navigatePage.handler>[1], context as unknown as Parameters<typeof navigatePage.handler>[2]);
-    assert.ok(response.lines.some((x) => x.includes('Unable to navigate forward')));
+    try {
+      await listPages.handler({ params: {} }, response as unknown as Parameters<typeof listPages.handler>[1], context as unknown as Parameters<typeof listPages.handler>[2]);
+      assert.strictEqual(response.state.includePages, true);
 
-    page.reload = async () => {
-      throw new Error('reload failed');
-    };
-    await navigatePage.handler({ params: { type: 'reload', ignoreCache: true } }, response as unknown as Parameters<typeof navigatePage.handler>[1], context as unknown as Parameters<typeof navigatePage.handler>[2]);
-    assert.ok(response.lines.some((x) => x.includes('Unable to reload')));
+      await selectPage.handler({ params: { pageIdx: 0 } }, response as unknown as Parameters<typeof selectPage.handler>[1], context as unknown as Parameters<typeof selectPage.handler>[2]);
+      assert.strictEqual(selected.idx, 2);
+      assert.deepStrictEqual(syncedPages, [page]);
+
+      await newPage.handler({ params: { url: 'https://a.com' } }, response as unknown as Parameters<typeof newPage.handler>[1], context as unknown as Parameters<typeof newPage.handler>[2]);
+      assert.strictEqual(response.state.includePages, true);
+
+      await assert.rejects(async () => {
+        await navigatePage.handler({ params: {} }, response as unknown as Parameters<typeof navigatePage.handler>[1], context as unknown as Parameters<typeof navigatePage.handler>[2]);
+      });
+
+      await navigatePage.handler({ params: { url: 'https://b.com' } }, response as unknown as Parameters<typeof navigatePage.handler>[1], context as unknown as Parameters<typeof navigatePage.handler>[2]);
+      assert.ok(response.lines.some((x) => x.includes('Successfully navigated')));
+
+      page.goto = async () => {
+        throw new Error('goto failed');
+      };
+      await navigatePage.handler({ params: { type: 'url', url: 'https://c.com' } }, response as unknown as Parameters<typeof navigatePage.handler>[1], context as unknown as Parameters<typeof navigatePage.handler>[2]);
+      assert.ok(response.lines.some((x) => x.includes('Unable to navigate in')));
+
+      page.goBack = async () => {
+        throw new Error('back failed');
+      };
+      await navigatePage.handler({ params: { type: 'back' } }, response as unknown as Parameters<typeof navigatePage.handler>[1], context as unknown as Parameters<typeof navigatePage.handler>[2]);
+      assert.ok(response.lines.some((x) => x.includes('Unable to navigate back')));
+
+      page.goForward = async () => {
+        throw new Error('forward failed');
+      };
+      await navigatePage.handler({ params: { type: 'forward' } }, response as unknown as Parameters<typeof navigatePage.handler>[1], context as unknown as Parameters<typeof navigatePage.handler>[2]);
+      assert.ok(response.lines.some((x) => x.includes('Unable to navigate forward')));
+
+      page.reload = async () => {
+        throw new Error('reload failed');
+      };
+      await navigatePage.handler({ params: { type: 'reload', ignoreCache: true } }, response as unknown as Parameters<typeof navigatePage.handler>[1], context as unknown as Parameters<typeof navigatePage.handler>[2]);
+      assert.ok(response.lines.some((x) => x.includes('Unable to reload')));
+    } finally {
+      runtime.syncPageContext = originalSyncPageContext;
+    }
   });
 
   it('covers network list/get branches', async () => {
@@ -288,9 +308,12 @@ describe('tools extended coverage', () => {
       },
     };
 
-    const pageSuccess: TestPageHarness = {
+    const frameSuccess: TestFrameHarness = {
       evaluateHandle: async () => fnHandle,
       evaluate: async () => '{"ok":true}',
+    };
+
+    const pageSuccess: TestPageHarness = {
       bringToFront: async () => undefined,
       goto: async () => undefined,
       goBack: async () => undefined,
@@ -298,10 +321,13 @@ describe('tools extended coverage', () => {
       reload: async () => undefined,
       url: () => '',
       screenshot: async () => new Uint8Array(),
+      evaluateHandle: async () => fnHandle,
+      evaluate: async () => '{"ok":true}',
     };
 
     const contextSuccess: ScriptContextHarness = {
       getSelectedPage: () => pageSuccess,
+      getSelectedFrame: () => frameSuccess,
       waitForEventsAfterAction: async (action: () => Promise<void>) => {
         await action();
       },
@@ -316,11 +342,14 @@ describe('tools extended coverage', () => {
     assert.ok(response.lines.some((x) => x.includes('Script ran on page and returned')));
     assert.strictEqual(disposed, 1);
 
-    const pageError: TestPageHarness = {
+    const frameError: TestFrameHarness = {
       evaluateHandle: async () => fnHandle,
       evaluate: async () => {
         throw new Error('eval failed');
       },
+    };
+
+    const pageError: TestPageHarness = {
       bringToFront: async () => undefined,
       goto: async () => undefined,
       goBack: async () => undefined,
@@ -328,10 +357,15 @@ describe('tools extended coverage', () => {
       reload: async () => undefined,
       url: () => '',
       screenshot: async () => new Uint8Array(),
+      evaluateHandle: async () => fnHandle,
+      evaluate: async () => {
+        throw new Error('eval failed');
+      },
     };
 
     const contextError: ScriptContextHarness = {
       getSelectedPage: () => pageError,
+      getSelectedFrame: () => frameError,
       waitForEventsAfterAction: async (action: () => Promise<void>) => {
         await action();
       },

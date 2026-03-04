@@ -470,6 +470,23 @@ describe('CodeCollector logic', () => {
     assert.strictEqual(pageFromNew, createdPage);
   });
 
+  it('prefers externally selected page context over manager state', async () => {
+    const selectedPage = { selected: true, isClosed: () => false };
+    const managerPage = { manager: true, isClosed: () => false };
+    const collector = makeCollector({
+      getCurrentPage: () => managerPage,
+    });
+
+    (
+      collector as unknown as {
+        setPageResolver?: (resolver?: () => unknown | null) => void;
+      }
+    ).setPageResolver?.(() => selectedPage);
+
+    const page = await collector.getActivePage();
+    assert.strictEqual(page, selectedPage);
+  });
+
   it('applies URL rule matching and navigation retries', async () => {
     const collector = makeCollector();
 

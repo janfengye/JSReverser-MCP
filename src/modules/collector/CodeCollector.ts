@@ -58,6 +58,7 @@ export class CodeCollector {
   private cdpListeners: {
     responseReceived?: (params: any) => void;
   } = {};
+  private pageResolver?: () => Page | null | undefined;
 
   constructor(config: PuppeteerConfig, browserManager: BrowserModeManager) {
     this.config = config;
@@ -184,6 +185,13 @@ export class CodeCollector {
   }
 
   /**
+   * 使用外部上下文提供当前页面，优先级高于内部浏览器管理状态。
+   */
+  setPageResolver(resolver?: () => Page | null | undefined): void {
+    this.pageResolver = resolver;
+  }
+
+  /**
    * 清理收集的URL（防止内存泄漏）
    */
   private cleanupCollectedUrls(): void {
@@ -281,6 +289,11 @@ export class CodeCollector {
   async getActivePage(): Promise<Page> {
     if (!this.browser || !this.browser.isConnected()) {
       await this.init();
+    }
+
+    const resolvedPage = this.pageResolver?.();
+    if (resolvedPage && !resolvedPage.isClosed()) {
+      return resolvedPage;
     }
 
     const managedPage = this.browserManager.getCurrentPage();

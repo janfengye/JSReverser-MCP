@@ -41,6 +41,7 @@ import * as websocketTools from './tools/websocket.js';
 import {ErrorCodes, formatError} from './utils/errors.js';
 import {TokenBudgetManager} from './utils/TokenBudgetManager.js';
 import {ToolExecutionScheduler} from './utils/ToolExecutionScheduler.js';
+import {getJSHookRuntime} from './tools/runtime.js';
 
 // If moved update release-please config
 // x-release-please-start-version
@@ -163,6 +164,7 @@ function registerTool(tool: ToolDefinition): void {
           const context = await getContext();
           logToolEvent(traceId, tool.name, 'context_resolved');
           await context.detectOpenDevToolsWindows();
+          getJSHookRuntime().bindPageContext(() => context.getSelectedPage());
           const response = new McpResponse();
           await tool.handler(
             {

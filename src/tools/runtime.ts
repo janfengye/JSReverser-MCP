@@ -24,6 +24,7 @@ import {
 import {getBrowserConfig} from '../utils/config.js';
 import {DetailedDataManager} from '../utils/detailedDataManager.js';
 import {UnifiedCacheManager} from '../utils/UnifiedCacheManager.js';
+import type {Page} from '../third_party/index.js';
 
 let runtime: JSHookRuntime | undefined;
 
@@ -39,6 +40,9 @@ export interface JSHookRuntime {
   deobfuscator: Deobfuscator;
   cryptoDetector: CryptoDetector;
   reverseTaskStore: ReverseTaskStore;
+  bindPageContext: (resolver: () => Page) => void;
+  syncPageContext: (page: Page) => void;
+  clearPageContext: () => void;
 }
 
 function toCollectorConfig(): PuppeteerConfig {
@@ -90,6 +94,17 @@ export function getJSHookRuntime(): JSHookRuntime {
     deobfuscator: new Deobfuscator(llmService),
     cryptoDetector: new CryptoDetector(llmService),
     reverseTaskStore,
+    bindPageContext: (resolver) => {
+      collector.setPageResolver(() => resolver());
+    },
+    syncPageContext: (page) => {
+      collector.setPageResolver(() => page);
+      browserManager.setCurrentPage(page);
+    },
+    clearPageContext: () => {
+      collector.setPageResolver(undefined);
+      browserManager.setCurrentPage(null);
+    },
   };
 
   return runtime;

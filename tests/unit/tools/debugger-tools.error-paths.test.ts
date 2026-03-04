@@ -78,6 +78,9 @@ interface ToolContextHarness {
   getSelectedPage(): {
     evaluate(script: string): Promise<unknown>;
   };
+  getSelectedFrame(): {
+    evaluate(script: string): Promise<unknown>;
+  };
   getNetworkRequestById(): {url(): string};
   getRequestInitiator(): unknown;
 }
@@ -108,6 +111,7 @@ function makeDisabledContext(): ToolContextHarness {
       isEnabled: () => false,
     },
     getSelectedPage: () => ({evaluate: async () => ({})}),
+    getSelectedFrame: () => ({evaluate: async () => ({})}),
     getNetworkRequestById: () => ({url: () => 'https://example.com'}),
     getRequestInitiator: () => undefined,
   };
@@ -142,6 +146,30 @@ describe('debugger tools error paths', () => {
 
   it('covers runtime error and failure response branches', async () => {
     const response = makeResponse();
+    const evaluateReverseScript = async (script: string) => {
+      if (script.includes('__mcp_hooks__') && script.includes('return [];')) {
+        throw new Error('list hook fail');
+      }
+      if (script.includes('hookId') && script.includes('Hook already exists')) {
+        return {success: false, message: 'Hook already exists with id: h1'};
+      }
+      if (script.includes('Hook not found')) {
+        return {success: false, message: 'Hook not found: missing'};
+      }
+      if (script.includes('Cannot evaluate')) {
+        return {error: 'Cannot evaluate: x'};
+      }
+      if (script.includes('Monitor already exists')) {
+        return {success: false, message: 'Monitor already exists: m1'};
+      }
+      if (script.includes('Monitor not found')) {
+        return {success: false, message: 'Monitor not found: m1'};
+      }
+      if (script.includes('const type =')) {
+        throw new Error('storage fail');
+      }
+      return {};
+    };
     const context: ToolContextHarness = {
       debuggerContext: {
         isEnabled: () => true,
@@ -158,30 +186,10 @@ describe('debugger tools error paths', () => {
         getClient: () => null,
       },
       getSelectedPage: () => ({
-        evaluate: async (script: string) => {
-          if (script.includes('__mcp_hooks__') && script.includes('return [];')) {
-            throw new Error('list hook fail');
-          }
-          if (script.includes('hookId') && script.includes('Hook already exists')) {
-            return {success: false, message: 'Hook already exists with id: h1'};
-          }
-          if (script.includes('Hook not found')) {
-            return {success: false, message: 'Hook not found: missing'};
-          }
-          if (script.includes('Cannot evaluate')) {
-            return {error: 'Cannot evaluate: x'};
-          }
-          if (script.includes('Monitor already exists')) {
-            return {success: false, message: 'Monitor already exists: m1'};
-          }
-          if (script.includes('Monitor not found')) {
-            return {success: false, message: 'Monitor not found: m1'};
-          }
-          if (script.includes('const type =')) {
-            throw new Error('storage fail');
-          }
-          return {};
-        },
+        evaluate: evaluateReverseScript,
+      }),
+      getSelectedFrame: () => ({
+        evaluate: evaluateReverseScript,
       }),
       getNetworkRequestById: () => {
         throw new Error('request missing');
