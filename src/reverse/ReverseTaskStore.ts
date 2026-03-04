@@ -12,6 +12,7 @@ import type {
   ReverseTaskEvent,
   ReverseTaskHandle,
   ReverseTaskOpenInput,
+  ReverseTaskReadApi,
   ReverseTaskStoreOptions,
 } from '../types/index.js';
 
@@ -40,7 +41,7 @@ async function writeJsonFile(targetPath: string, value: unknown): Promise<void> 
   await writeFile(targetPath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
-export class ReverseTaskStore {
+export class ReverseTaskStore implements ReverseTaskReadApi {
   readonly rootDir: string;
 
   constructor(options: ReverseTaskStoreOptions = {}) {
@@ -94,6 +95,32 @@ export class ReverseTaskStore {
         await writeJsonFile(taskFilePath, descriptor);
       },
     };
+  }
+
+  getTaskDir(taskId: string): string {
+    return path.join(this.rootDir, taskId);
+  }
+
+  async readSnapshot<T>(taskId: string, name: string): Promise<T | undefined> {
+    const filePath = path.join(this.getTaskDir(taskId), name);
+    if (!(await pathExists(filePath))) {
+      return undefined;
+    }
+    const raw = await readFile(filePath, 'utf8');
+    return JSON.parse(raw) as T;
+  }
+
+  async readLog(name: string, taskId: string): Promise<Record<string, unknown>[]> {
+    const filePath = path.join(this.getTaskDir(taskId), `${name}.jsonl`);
+    if (!(await pathExists(filePath))) {
+      return [];
+    }
+    const raw = await readFile(filePath, 'utf8');
+    return raw
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
   }
 
   private async appendJsonLine(targetPath: string, value: Record<string, unknown>): Promise<void> {

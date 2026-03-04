@@ -827,6 +827,12 @@ export interface ReverseTaskHandle {
   writeSnapshot(name: string, value: unknown): Promise<void>;
 }
 
+export interface ReverseTaskReadApi {
+  getTaskDir(taskId: string): string;
+  readSnapshot<T>(taskId: string, name: string): Promise<T | undefined>;
+  readLog(name: string, taskId: string): Promise<Record<string, unknown>[]>;
+}
+
 // ==================== 全局类型扩展 ====================
 
 declare global {

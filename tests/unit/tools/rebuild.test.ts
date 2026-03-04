@@ -91,4 +91,85 @@ describe('rebuild bridge tools', () => {
       await rm(rootDir, {recursive: true, force: true});
     }
   });
+
+  it('auto-generates a rebuild bundle from observed page evidence and task logs', async () => {
+    const rootDir = await mkdtemp(path.join(tmpdir(), 'js-reverse-rebuild-auto-'));
+    const runtime = getJSHookRuntime();
+    const originalStore = runtime.reverseTaskStore;
+    const originals = {
+      getTopPriorityFiles: runtime.collector.getTopPriorityFiles,
+      getCookies: runtime.pageController.getCookies,
+      getLocalStorage: runtime.pageController.getLocalStorage,
+      getSessionStorage: runtime.pageController.getSessionStorage,
+      getPage: runtime.pageController.getPage,
+    };
+    runtime.reverseTaskStore = new ReverseTaskStore({rootDir});
+
+    try {
+      const task = await runtime.reverseTaskStore.openTask({
+        taskId: 'task-002',
+        slug: 'auto-demo',
+        targetUrl: 'https://example.com/product',
+        goal: 'rebuild signature',
+      });
+      await task.appendLog('runtime-evidence', {
+        source: 'hook',
+        requestUrl: 'https://example.com/api/sign',
+        functionName: 'signPayload',
+        bodyPreview: '{"token":"abc","sign":"xyz"}',
+      });
+      await task.writeSnapshot('cookies.json', {
+        cookies: [{name: 'sid', value: 'cookie-1'}],
+      });
+
+      runtime.collector.getTopPriorityFiles = () => ({
+        files: [{
+          url: 'https://example.com/static/sign.js',
+          content: 'function signPayload(token, nonce) { return token + nonce; }',
+          size: 58,
+          type: 'external',
+        }],
+        totalSize: 58,
+        totalFiles: 1,
+      });
+      runtime.pageController.getCookies = async () => [{name: 'sid', value: 'cookie-1'}];
+      runtime.pageController.getLocalStorage = async () => ({token: 'abc'});
+      runtime.pageController.getSessionStorage = async () => ({nonce: 'n-1'});
+      runtime.pageController.getPage = async () => ({
+        url: () => 'https://example.com/product',
+        title: async () => 'Product',
+      } as Awaited<ReturnType<typeof runtime.pageController.getPage>>);
+
+      const response = makeResponse();
+      await exportRebuildBundle.handler({
+        params: {
+          taskId: 'task-002',
+          taskSlug: 'auto-demo',
+          targetUrl: 'https://example.com/product',
+          goal: 'rebuild signature',
+          autoGenerate: true,
+        },
+      } as Parameters<typeof exportRebuildBundle.handler>[0], response as unknown as Parameters<typeof exportRebuildBundle.handler>[1], {} as Parameters<typeof exportRebuildBundle.handler>[2]);
+
+      const entryCode = await readFile(path.join(rootDir, 'task-002', 'env', 'entry.js'), 'utf8');
+      const envCode = await readFile(path.join(rootDir, 'task-002', 'env', 'env.js'), 'utf8');
+      const capture = JSON.parse(await readFile(path.join(rootDir, 'task-002', 'env', 'capture.json'), 'utf8')) as Record<string, unknown>;
+
+      assert.ok(entryCode.includes('signPayload'));
+      assert.ok(entryCode.includes('capture.targetScript'));
+      assert.ok(envCode.includes('globalThis.window = globalThis'));
+      assert.ok(envCode.includes('globalThis.localStorage'));
+      assert.strictEqual((capture.page as Record<string, unknown>).url, 'https://example.com/product');
+      assert.strictEqual(((capture.cookies as Array<Record<string, unknown>>)[0]).name, 'sid');
+      assert.strictEqual(((capture.runtimeEvidence as Array<Record<string, unknown>>)[0]).functionName, 'signPayload');
+    } finally {
+      runtime.reverseTaskStore = originalStore;
+      runtime.collector.getTopPriorityFiles = originals.getTopPriorityFiles;
+      runtime.pageController.getCookies = originals.getCookies;
+      runtime.pageController.getLocalStorage = originals.getLocalStorage;
+      runtime.pageController.getSessionStorage = originals.getSessionStorage;
+      runtime.pageController.getPage = originals.getPage;
+      await rm(rootDir, {recursive: true, force: true});
+    }
+  });
 });

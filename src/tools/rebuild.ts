@@ -8,6 +8,7 @@ import {mkdir, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 
 import {zod} from '../third_party/index.js';
+import type {CodeFile} from '../types/index.js';
 
 import {ToolCategory} from './categories.js';
 import {getJSHookRuntime} from './runtime.js';
@@ -17,6 +18,119 @@ async function writeArtifactFile(taskDir: string, relativePath: string, content:
   const filePath = path.join(taskDir, relativePath);
   await mkdir(path.dirname(filePath), {recursive: true});
   await writeFile(filePath, content, 'utf8');
+}
+
+function buildDefaultEnvCode(): string {
+  return [
+    'globalThis.window = globalThis;',
+    'globalThis.self = globalThis;',
+    'globalThis.global = globalThis;',
+    'globalThis.document ??= {cookie: "", location: {href: ""}};',
+    'globalThis.navigator ??= {userAgent: "js-reverse-mcp"};',
+    'globalThis.location ??= {href: ""};',
+    'globalThis.atob ??= (value) => Buffer.from(value, "base64").toString("utf8");',
+    'globalThis.btoa ??= (value) => Buffer.from(value, "utf8").toString("base64");',
+    'globalThis.crypto ??= {subtle: {}};',
+  ].join('\n');
+}
+
+function toStorageShimCode(name: 'localStorage' | 'sessionStorage', values: Record<string, unknown>): string {
+  const entries = Object.entries(values);
+  return [
+    `const ${name}Seed = new Map(${JSON.stringify(entries)});`,
+    `globalThis.${name} = {`,
+    '  getItem(key) { return this._store.has(key) ? this._store.get(key) : null; },',
+    '  setItem(key, value) { this._store.set(String(key), String(value)); },',
+    '  removeItem(key) { this._store.delete(String(key)); },',
+    '  clear() { this._store.clear(); },',
+    '  key(index) { return Array.from(this._store.keys())[index] ?? null; },',
+    '  get length() { return this._store.size; },',
+    `  _store: ${name}Seed,`,
+    '};',
+  ].join('\n');
+}
+
+function buildAutoEnvCode(capture: Record<string, unknown>): string {
+  const cookies = Array.isArray(capture.cookies) ? capture.cookies : [];
+  const localStorageValues = capture.localStorage && typeof capture.localStorage === 'object'
+    ? capture.localStorage as Record<string, unknown>
+    : {};
+  const sessionStorageValues = capture.sessionStorage && typeof capture.sessionStorage === 'object'
+    ? capture.sessionStorage as Record<string, unknown>
+    : {};
+  const page = capture.page && typeof capture.page === 'object'
+    ? capture.page as Record<string, unknown>
+    : {};
+
+  return [
+    buildDefaultEnvCode(),
+    `globalThis.location = {href: ${JSON.stringify(page.url ?? '')}};`,
+    `globalThis.document = {cookie: ${JSON.stringify(cookies.map((cookie) => `${String((cookie as Record<string, unknown>).name ?? '')}=${String((cookie as Record<string, unknown>).value ?? '')}`).join('; '))}, location: globalThis.location};`,
+    toStorageShimCode('localStorage', localStorageValues),
+    toStorageShimCode('sessionStorage', sessionStorageValues),
+  ].join('\n\n');
+}
+
+function buildAutoEntryCode(targetScript: CodeFile | undefined, capture: Record<string, unknown>): string {
+  return [
+    'import "./env.js";',
+    'import "./polyfills.js";',
+    '',
+    `const capture = ${JSON.stringify(capture, null, 2)};`,
+    `capture.targetScript = ${JSON.stringify(targetScript ?? null, null, 2)};`,
+    '',
+    'if (capture.targetScript?.content) {',
+    '  eval(capture.targetScript.content);',
+    '}',
+    '',
+    'const targetFunction = capture.runtimeEvidence?.find((item) => typeof item.functionName === "string")?.functionName;',
+    'if (targetFunction && typeof globalThis[targetFunction] === "function") {',
+    '  console.log({targetFunction, result: globalThis[targetFunction]("token", "nonce")});',
+    '} else {',
+    '  console.log({message: "target function not callable yet", targetFunction});',
+    '}',
+  ].join('\n');
+}
+
+async function buildAutoBundle(taskId: string, runtime: ReturnType<typeof getJSHookRuntime>): Promise<{
+  entryCode: string;
+  envCode: string;
+  polyfillsCode: string;
+  capture: Record<string, unknown>;
+  notes: string[];
+}> {
+  const topPriority = runtime.collector.getTopPriorityFiles(1);
+  const targetScript = topPriority.files[0];
+  const page = await runtime.pageController.getPage();
+  const [cookies, localStorage, sessionStorage, runtimeEvidence] = await Promise.all([
+    runtime.pageController.getCookies(),
+    runtime.pageController.getLocalStorage(),
+    runtime.pageController.getSessionStorage(),
+    runtime.reverseTaskStore.readLog('runtime-evidence', taskId),
+  ]);
+
+  const capture = {
+    page: {
+      url: page.url(),
+      title: await page.title(),
+    },
+    cookies,
+    localStorage,
+    sessionStorage,
+    runtimeEvidence,
+    targetScript: targetScript ?? null,
+  };
+
+  return {
+    entryCode: buildAutoEntryCode(targetScript, capture),
+    envCode: buildAutoEnvCode(capture),
+    polyfillsCode: '',
+    capture,
+    notes: [
+      targetScript ? `auto-selected target script: ${targetScript.url}` : 'no target script selected from collector',
+      runtimeEvidence.length > 0 ? `runtime evidence records: ${runtimeEvidence.length}` : 'no runtime evidence records found',
+    ],
+  };
 }
 
 function inferMissingCapabilities(runtimeError: string, observedCapabilities: string[]): Array<{
@@ -76,10 +190,11 @@ export const exportRebuildBundle = defineTool({
     taskSlug: zod.string(),
     targetUrl: zod.string(),
     goal: zod.string(),
-    entryCode: zod.string(),
-    envCode: zod.string(),
+    autoGenerate: zod.boolean().optional(),
+    entryCode: zod.string().optional(),
+    envCode: zod.string().optional(),
     polyfillsCode: zod.string().optional(),
-    capture: zod.record(zod.string(), zod.unknown()),
+    capture: zod.record(zod.string(), zod.unknown()).optional(),
     notes: zod.array(zod.string()).default([]),
   },
   handler: async (request, response) => {
@@ -91,10 +206,24 @@ export const exportRebuildBundle = defineTool({
       goal: request.params.goal,
     });
 
-    await writeArtifactFile(task.taskDir, 'env/entry.js', `${request.params.entryCode}\n`);
-    await writeArtifactFile(task.taskDir, 'env/env.js', `${request.params.envCode}\n`);
-    await writeArtifactFile(task.taskDir, 'env/polyfills.js', `${request.params.polyfillsCode ?? ''}\n`);
-    await writeArtifactFile(task.taskDir, 'env/capture.json', `${JSON.stringify(request.params.capture, null, 2)}\n`);
+    const bundle = request.params.autoGenerate
+      ? await buildAutoBundle(request.params.taskId, runtime)
+      : {
+          entryCode: request.params.entryCode ?? '',
+          envCode: request.params.envCode ?? '',
+          polyfillsCode: request.params.polyfillsCode ?? '',
+          capture: request.params.capture ?? {},
+          notes: request.params.notes,
+        };
+
+    if (!request.params.autoGenerate && (!request.params.entryCode || !request.params.envCode || !request.params.capture)) {
+      throw new Error('entryCode, envCode, and capture are required unless autoGenerate=true.');
+    }
+
+    await writeArtifactFile(task.taskDir, 'env/entry.js', `${bundle.entryCode}\n`);
+    await writeArtifactFile(task.taskDir, 'env/env.js', `${bundle.envCode}\n`);
+    await writeArtifactFile(task.taskDir, 'env/polyfills.js', `${bundle.polyfillsCode}\n`);
+    await writeArtifactFile(task.taskDir, 'env/capture.json', `${JSON.stringify(bundle.capture, null, 2)}\n`);
 
     const report = [
       '# Rebuild Bundle',
@@ -104,7 +233,7 @@ export const exportRebuildBundle = defineTool({
       `- Goal: ${request.params.goal}`,
       '',
       '## Notes',
-      ...request.params.notes.map((note) => `- ${note}`),
+      ...bundle.notes.map((note) => `- ${note}`),
     ].join('\n');
     await writeArtifactFile(task.taskDir, 'report.md', `${report}\n`);
 
@@ -113,6 +242,7 @@ export const exportRebuildBundle = defineTool({
       ok: true,
       taskId: task.taskId,
       taskDir: task.taskDir,
+      autoGenerated: Boolean(request.params.autoGenerate),
       files: [
         'env/entry.js',
         'env/env.js',
