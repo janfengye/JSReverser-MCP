@@ -556,9 +556,14 @@ export class McpResponse implements Response {
 
     const httpRequest = context.getNetworkRequestById(id);
     response.push(`## Request ${httpRequest.url()}`);
+    response.push(`Method: ${httpRequest.method()}`);
+    response.push(`Resource Type: ${httpRequest.resourceType()}`);
     response.push(`Status:  ${getStatusFromRequest(httpRequest)}`);
-    response.push(`### Request Headers`);
-    for (const line of getFormattedHeaderValue(httpRequest.headers())) {
+    const requestHeaders = httpRequest.headers();
+    response.push(
+      `### Request Headers (${Object.keys(requestHeaders).length})`,
+    );
+    for (const line of getFormattedHeaderValue(requestHeaders)) {
       response.push(line);
     }
 
@@ -569,8 +574,11 @@ export class McpResponse implements Response {
 
     const httpResponse = httpRequest.response();
     if (httpResponse) {
-      response.push(`### Response Headers`);
-      for (const line of getFormattedHeaderValue(httpResponse.headers())) {
+      const responseHeaders = httpResponse.headers();
+      response.push(
+        `### Response Headers (${Object.keys(responseHeaders).length})`,
+      );
+      for (const line of getFormattedHeaderValue(responseHeaders)) {
         response.push(line);
       }
     }
@@ -582,7 +590,7 @@ export class McpResponse implements Response {
 
     const httpFailure = httpRequest.failure();
     if (httpFailure) {
-      response.push(`### Request failed with`);
+      response.push(`### Request Failure`);
       response.push(httpFailure.errorText);
     }
 
