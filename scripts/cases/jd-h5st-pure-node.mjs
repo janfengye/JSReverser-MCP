@@ -22,7 +22,7 @@ Required workflow:
    - Record first divergence and next patch action.
 6) Repository boundary:
    - Keep this file abstract (workflow + acceptance criteria only).
-   - Put executable scripts only in `artifacts/tasks-local/<task-id>/run/`.
+   - Put executable scripts only in `artifacts/tasks/<task-id>/run/`.
 
 Output contract:
 - signing field shape (e.g. segment count)
@@ -36,8 +36,8 @@ Security constraints:
 - No complete reusable signing script in repository.
 - No fixed production parameter bundle in repository.
 
-Local-only implementation path (gitignored):
-- artifacts/tasks-local/<task-id>/
+Implementation path:
+- artifacts/tasks/<task-id>/
 
 References:
 - skills/mcp-js-reverse-playbook/references/cases/case-signature-node-template.md

@@ -18,9 +18,9 @@
 
 后续如果要沉淀“某个参数的可复现链路”，统一按下面流程执行：
 
-1. 先读本地任务目录（如果存在）
-- `artifacts/tasks-local/<task-id>/`
-- 这里是最高优先级，包含完整本地逆向过程与可执行脚本（默认不提交）。
+1. 先读任务目录（如果存在）
+- `artifacts/tasks/<task-id>/`
+- 这里是最高优先级，包含完整逆向过程与可复现脚本。
 
 2. 本地目录不存在时，读抽象 case
 - `scripts/cases/*`
@@ -43,8 +43,8 @@
 - `report.md`：结果、first divergence、下一步动作
 
 5. 安全边界
-- 仓库内仅保留抽象方法与流程文档。
-- 可执行逆向代码、完整链路产物、敏感采样一律放 `artifacts/tasks-local/`（git 忽略）。
+- 仓库内 case 仅保留抽象方法与流程文档。
+- 可执行逆向代码与链路产物统一放 `artifacts/tasks/`，敏感值必须脱敏后再入库。
 - 详见：`docs/case-safety-policy.md`、`docs/reverse-artifacts.md`。
 
 ## 核心能力

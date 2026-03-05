@@ -62,4 +62,4 @@
 - 仓库内只保留抽象方法与验收标准。
 - 不提交真实 cookie/token/storage 原文。
 - 不提交可直接复用的完整可执行脚本。
-- 可执行实现仅放 `artifacts/tasks-local/<task-id>/`（git 忽略）。
+- 可执行实现统一放 `artifacts/tasks/<task-id>/`。

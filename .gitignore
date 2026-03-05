@@ -158,7 +158,6 @@ artifacts/tasks/**/env/*cookie*.json
 # Local-only executable reverse cases (never commit)
 .local-cases/
 .local-private/
-artifacts/tasks-local/
 
 # Never commit smoke task artifacts
 artifacts/tasks/smoke-task-*/

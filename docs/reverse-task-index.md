@@ -12,7 +12,7 @@
 
 读取优先级（强制）：
 
-1. 先读 `artifacts/tasks-local/<task-id>/`（若存在）
+1. 先读 `artifacts/tasks/<task-id>/`（若存在）
 2. 再读 `scripts/cases/*` 抽象 case
 3. 最后按模板新建流程：
    - `docs/parameter-methodology-template.md`
@@ -132,6 +132,6 @@
 1. 先填站点无关模板：`docs/parameter-methodology-template.md`
 2. 再填站点映射模板：`docs/parameter-site-mapping-template.md`
 3. 按模板执行 Observe/Capture/Rebuild/Verify
-4. 可执行代码与完整链路仅放 `artifacts/tasks-local/<task-id>/`，不入库
+4. 可执行代码与完整链路统一放 `artifacts/tasks/<task-id>/`
 
 安全约束：`docs/case-safety-policy.md`

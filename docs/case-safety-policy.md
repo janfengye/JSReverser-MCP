@@ -20,20 +20,20 @@
 - 可直接调用线上接口的一键脚本
 
 ## 本地执行约定
-- 可执行代码与完整链路产物统一放在本地任务目录（按参数/任务拆分）：
-  - `artifacts/tasks-local/<task-id>/`
+- 可执行代码与完整链路产物统一放在任务目录（按参数/任务拆分）：
+  - `artifacts/tasks/<task-id>/`
 - 推荐目录结构：
   - `task.json`（目标与边界）
   - `runtime-evidence.jsonl`（关键证据）
   - `env/`（补环境脚本）
   - `run/`（可执行脚本与运行日志）
   - `report.md`（结果与 first divergence）
-- `artifacts/tasks-local/` 默认 `.gitignore`，不得提交。
+- `artifacts/tasks/` 允许沉淀可复用流程，但敏感值必须脱敏。
 
 ## 复用优先级
-1. 优先读取 `artifacts/tasks-local/<task-id>/`（完整本地链路）。
+1. 优先读取 `artifacts/tasks/<task-id>/`（完整链路）。
 2. 若不存在对应 task，再读取 `scripts/cases/*` 抽象 case。
-3. 若仍无参考，按方法论模板新建任务并沉淀到 `artifacts/tasks-local/`。
+3. 若仍无参考，按方法论模板新建任务并沉淀到 `artifacts/tasks/`。
 
 ## 评审清单
 - 该 case 是否在仓库内可直接运行？

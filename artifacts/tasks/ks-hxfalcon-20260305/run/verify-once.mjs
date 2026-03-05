@@ -1,0 +1,1 @@
+// local single verification placeholder
