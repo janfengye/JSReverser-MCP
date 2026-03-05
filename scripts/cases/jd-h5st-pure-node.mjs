@@ -41,7 +41,6 @@ Local-only implementation path (gitignored):
 
 References:
 - skills/mcp-js-reverse-playbook/references/cases/case-signature-node-template.md
-- skills/mcp-js-reverse-playbook/references/cases/case-h5st-node-env.md
 - docs/case-safety-policy.md
 `);
 }
