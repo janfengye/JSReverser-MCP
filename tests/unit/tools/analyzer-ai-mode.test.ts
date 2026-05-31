@@ -113,4 +113,46 @@ describe('analyzer ai runtime metadata', () => {
       runtime.hookManager.getAllKnownHookIds = originals.getAllKnownHookIds;
     }
   });
+
+  it('passes aiMode through understand_code and rejects required mode when unavailable', async () => {
+    const runtime = getJSHookRuntime() as unknown as {
+      analyzer: {understand(input: unknown): Promise<unknown>};
+    };
+    const original = runtime.analyzer.understand;
+    const calls: unknown[] = [];
+    runtime.analyzer.understand = async input => {
+      calls.push(input);
+      return {
+        securityRisks: [],
+        qualityScore: 90,
+      };
+    };
+
+    try {
+      const response = makeResponse();
+      await understandCode.handler(
+        {params: {code: 'function a(){}', aiMode: 'off'}},
+        response as unknown as Parameters<typeof understandCode.handler>[1],
+        {} as Parameters<typeof understandCode.handler>[2],
+      );
+      assert.deepStrictEqual(calls[0], {
+        code: 'function a(){}',
+        aiMode: 'off',
+      });
+
+      await assert.rejects(
+        () =>
+          understandCode.handler(
+            {params: {code: 'function a(){}', aiMode: 'required'}},
+            makeResponse() as unknown as Parameters<
+              typeof understandCode.handler
+            >[1],
+            {} as Parameters<typeof understandCode.handler>[2],
+          ),
+        /AI mode required/,
+      );
+    } finally {
+      runtime.analyzer.understand = original;
+    }
+  });
 });

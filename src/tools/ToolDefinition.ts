@@ -29,6 +29,7 @@ export interface ToolDefinition<
      */
     readOnlyHint: boolean;
   };
+  requiresBrowser?: boolean;
   schema: Schema;
   handler: (
     request: Request<Schema>,

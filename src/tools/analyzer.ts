@@ -15,6 +15,20 @@ import {ToolCategory} from './categories.js';
 import {getJSHookRuntime} from './runtime.js';
 import {defineTool} from './ToolDefinition.js';
 
+const aiModeSchema = zod.enum(['auto', 'required', 'off']);
+
+function assertAIRequiredModeAvailable(aiMode?: 'auto' | 'required' | 'off') {
+  if (aiMode !== 'required') {
+    return;
+  }
+  const aiRuntime = getAIRuntimeStatus();
+  if (!aiRuntime.enabled) {
+    throw new Error(
+      `AI mode required but no provider is available: ${aiRuntime.reason}`,
+    );
+  }
+}
+
 function withAIRuntime<T>(
   result: T,
 ): T & {aiRuntime: ReturnType<typeof getAIRuntimeStatus>} {
@@ -530,8 +544,10 @@ export const understandCode = defineTool({
   schema: {
     code: zod.string(),
     focus: zod.enum(['all', 'structure', 'business', 'security']).optional(),
+    aiMode: aiModeSchema.optional(),
   },
   handler: async (request, response) => {
+    assertAIRequiredModeAvailable(request.params.aiMode);
     const runtime = getJSHookRuntime();
     const result = await runtime.analyzer.understand(request.params);
     response.appendResponseLine('```json');
@@ -1388,6 +1404,7 @@ type AnalyzeTargetParams = zod.infer<
     url: zod.ZodString;
     topN: zod.ZodOptional<zod.ZodNumber>;
     useAI: zod.ZodOptional<zod.ZodBoolean>;
+    aiMode: zod.ZodOptional<zod.ZodEnum<['auto', 'required', 'off']>>;
     runDeobfuscation: zod.ZodOptional<zod.ZodBoolean>;
     hookPreset: zod.ZodOptional<
       zod.ZodEnum<['none', 'api-signature', 'network-core']>
@@ -1542,8 +1559,15 @@ async function runAnalyzeTargetWorkflow(
   }
 
   const [understand, crypto] = await Promise.all([
-    runtime.analyzer.understand({code: analysisCode, focus: 'security'}),
-    runtime.cryptoDetector.detect({code: analysisCode}),
+    runtime.analyzer.understand({
+      code: analysisCode,
+      focus: 'security',
+      aiMode: params.aiMode,
+    }),
+    runtime.cryptoDetector.detect({
+      code: analysisCode,
+      useAI: params.aiMode === 'off' ? false : params.useAI,
+    }),
   ]);
 
   const deobfuscation = params.runDeobfuscation
@@ -1772,6 +1796,7 @@ export const analyzeTarget = defineTool({
     url: zod.string().url(),
     topN: zod.number().int().positive().optional(),
     useAI: zod.boolean().optional(),
+    aiMode: aiModeSchema.optional(),
     runDeobfuscation: zod.boolean().optional(),
     hookPreset: zod.enum(['none', 'api-signature', 'network-core']).optional(),
     autoInjectHooks: zod.boolean().optional(),
@@ -1817,6 +1842,7 @@ export const analyzeTarget = defineTool({
       .optional(),
   },
   handler: async (request, response) => {
+    assertAIRequiredModeAvailable(request.params.aiMode);
     const runtime = getJSHookRuntime();
     const result = await runAnalyzeTargetWorkflow(runtime, request.params);
 

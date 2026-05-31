@@ -36,6 +36,7 @@ import * as jshookDomTools from './tools/dom.js';
 import * as frameTools from './tools/frames.js';
 import * as jshookHookTools from './tools/hook.js';
 import * as networkTools from './tools/network.js';
+import {optimizationTools} from './tools/optimizations.js';
 import * as orchestratorTools from './tools/orchestrator.js';
 import * as jshookPageTools from './tools/page.js';
 import * as pagesTools from './tools/pages.js';
@@ -178,20 +179,27 @@ function registerTool(tool: ToolDefinition): void {
         const startedAt = Date.now();
         try {
           logToolEvent(traceId, tool.name, 'request', {params});
-          const context = await getContext();
-          logToolEvent(traceId, tool.name, 'context_resolved');
-          await context.detectOpenDevToolsWindows();
-          getJSHookRuntime().bindPageContext(() => context.getSelectedPage());
+          const requiresBrowser = tool.requiresBrowser ?? true;
+          const context = requiresBrowser ? await getContext() : undefined;
+          if (context) {
+            logToolEvent(traceId, tool.name, 'context_resolved');
+            await context.detectOpenDevToolsWindows();
+            getJSHookRuntime().bindPageContext(() => context.getSelectedPage());
+          } else {
+            logToolEvent(traceId, tool.name, 'context_skipped');
+          }
           const response = new McpResponse();
           await tool.handler(
             {
               params,
             },
             response,
-            context,
+            context as Awaited<ReturnType<typeof getContext>>,
           );
           try {
-            const content = await response.handle(tool.name, context);
+            const content = context
+              ? await response.handle(tool.name, context)
+              : response.handleWithoutContext(tool.name);
             const wrapped = withOptionalTraceIdContent(
               content,
               traceId,
@@ -257,6 +265,7 @@ const toolSources: Array<{source: string; tools: ToolDefinition[]}> = [
   {source: 'advisor', tools: asTools(advisorTools)},
   {source: 'frames', tools: asTools(frameTools)},
   {source: 'network', tools: asTools(networkTools)},
+  {source: 'optimizations', tools: optimizationTools as ToolDefinition[]},
   {source: 'pages', tools: asTools(pagesTools)},
   {source: 'screenshot', tools: asTools(screenshotTools)},
   {source: 'script', tools: asTools(scriptTools)},

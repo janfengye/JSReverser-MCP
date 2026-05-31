@@ -46,14 +46,15 @@ export class CodeAnalyzer {
     const startTime = Date.now();
 
     try {
-      const {code, context, focus = 'all'} = options;
+      const {code, context, focus = 'all', aiMode = 'auto'} = options;
 
       // 1. 静态分析 - 提取代码结构
       const structure = await this.analyzeStructure(code);
       logger.debug('Code structure analyzed');
 
       // 2. AI分析 - 深度理解
-      const aiAnalysis = await this.aiAnalyze(code, focus);
+      const aiAnalysis =
+        aiMode === 'off' ? {} : await this.aiAnalyze(code, focus, aiMode);
       logger.debug('AI analysis completed');
 
       // 3. 技术栈识别
@@ -273,6 +274,7 @@ export class CodeAnalyzer {
   private async aiAnalyze(
     code: string,
     focus: string,
+    aiMode: 'auto' | 'required' | 'off' = 'auto',
   ): Promise<Record<string, unknown>> {
     try {
       const messages = this.llm.generateCodeAnalysisPrompt(code, focus);
@@ -289,6 +291,9 @@ export class CodeAnalyzer {
 
       return {rawAnalysis: response.content};
     } catch (error) {
+      if (aiMode === 'required') {
+        throw error;
+      }
       logger.warn('AI analysis failed, using fallback', error);
       return {};
     }

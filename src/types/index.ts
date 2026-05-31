@@ -207,6 +207,7 @@ export interface UnderstandCodeOptions {
   code: string;
   context?: Record<string, unknown>;
   focus?: 'structure' | 'business' | 'security' | 'all';
+  aiMode?: 'auto' | 'required' | 'off';
 }
 
 export interface UnderstandCodeResult {
@@ -376,6 +377,7 @@ export interface CodeLocation {
 export interface DetectCryptoOptions {
   code: string;
   testData?: unknown;
+  useAI?: boolean;
 }
 
 export interface DetectCryptoResult {

@@ -13,6 +13,7 @@ export const diagnoseEnvironment = defineTool({
   description:
     'Run static environment diagnostics for startup, AI provider setup, and artifact output paths.',
   annotations: {category: ToolCategory.NAVIGATION, readOnlyHint: true},
+  requiresBrowser: false,
   schema: {},
   handler: async (_request, response) => {
     response.appendResponseLine('```json');

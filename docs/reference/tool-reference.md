@@ -62,11 +62,12 @@ Common fields include `schemaVersion`, `responseSummary`, `diagnostics`, `outcom
 }
 ```
 
-- **[Navigation automation](#navigation-automation)** (23 tools)
+- **[Navigation automation](#navigation-automation)** (27 tools)
   - [`check_browser_health`](#check_browser_health)
   - [`click_element`](#click_element)
   - [`diagnose_environment`](#diagnose_environment)
   - [`emulate_device`](#emulate_device)
+  - [`export_diagnostic_bundle`](#export_diagnostic_bundle)
   - [`find_clickable_elements`](#find_clickable_elements)
   - [`get_all_links`](#get_all_links)
   - [`get_dom_structure`](#get_dom_structure)
@@ -77,6 +78,9 @@ Common fields include `schemaVersion`, `responseSummary`, `diagnostics`, `outcom
   - [`new_page`](#new_page)
   - [`press_key`](#press_key)
   - [`query_dom`](#query_dom)
+  - [`record_page_flow`](#record_page_flow)
+  - [`repair_browser_connection`](#repair_browser_connection)
+  - [`replay_page_flow`](#replay_page_flow)
   - [`scroll_page`](#scroll_page)
   - [`select_option`](#select_option)
   - [`select_page`](#select_page)
@@ -86,12 +90,15 @@ Common fields include `schemaVersion`, `responseSummary`, `diagnostics`, `outcom
   - [`upload_file`](#upload_file)
   - [`wait_for_element`](#wait_for_element)
   - [`wait_for_network_idle`](#wait_for_network_idle)
-- **[Network](#network)** (5 tools)
+- **[Network](#network)** (8 tools)
   - [`analyze_websocket_messages`](#analyze_websocket_messages)
+  - [`export_har_snapshot`](#export_har_snapshot)
   - [`get_websocket_message`](#get_websocket_message)
   - [`get_websocket_messages`](#get_websocket_messages)
+  - [`infer_websocket_schema`](#infer_websocket_schema)
   - [`list_websocket_connections`](#list_websocket_connections)
   - [`network_request`](#network_request)
+  - [`trace_request_to_code`](#trace_request_to_code)
 - **[Debugging](#debugging)** (6 tools)
   - [`console_message`](#console_message)
   - [`evaluate_script`](#evaluate_script)
@@ -99,8 +106,10 @@ Common fields include `schemaVersion`, `responseSummary`, `diagnostics`, `outcom
   - [`list_frames`](#list_frames)
   - [`select_frame`](#select_frame)
   - [`take_screenshot`](#take_screenshot)
-- **[JS Reverse Engineering](#js-reverse-engineering)** (60 tools)
+- **[JS Reverse Engineering](#js-reverse-engineering)** (69 tools)
+  - [`analyze_source_maps`](#analyze_source_maps)
   - [`analyze_target`](#analyze_target)
+  - [`auto_rebuild_fix_loop`](#auto_rebuild_fix_loop)
   - [`breakpoint`](#breakpoint)
   - [`collect_code`](#collect_code)
   - [`collection_diff`](#collection_diff)
@@ -109,13 +118,16 @@ Common fields include `schemaVersion`, `responseSummary`, `diagnostics`, `outcom
   - [`deobfuscate_code`](#deobfuscate_code)
   - [`detect_crypto`](#detect_crypto)
   - [`diff_env_requirements`](#diff_env_requirements)
+  - [`diff_session_state`](#diff_session_state)
   - [`evaluate_on_callframe`](#evaluate_on_callframe)
   - [`explain_reverse_stage`](#explain_reverse_stage)
+  - [`export_function_slice`](#export_function_slice)
   - [`export_portable_bundle`](#export_portable_bundle)
   - [`export_rebuild_bundle`](#export_rebuild_bundle)
   - [`export_session_report`](#export_session_report)
   - [`extract_function_tree`](#extract_function_tree)
   - [`find_in_script`](#find_in_script)
+  - [`generate_parameter_report`](#generate_parameter_report)
   - [`get_hook_data`](#get_hook_data)
   - [`get_parameter_workflow`](#get_parameter_workflow)
   - [`get_paused_info`](#get_paused_info)
@@ -134,11 +146,15 @@ Common fields include `schemaVersion`, `responseSummary`, `diagnostics`, `outcom
   - [`list_scripts`](#list_scripts)
   - [`list_stealth_features`](#list_stealth_features)
   - [`list_stealth_presets`](#list_stealth_presets)
+  - [`list_task_artifacts`](#list_task_artifacts)
+  - [`locate_candidate_functions`](#locate_candidate_functions)
   - [`locate_signature_function`](#locate_signature_function)
   - [`manage_reverse_task`](#manage_reverse_task)
   - [`monitor_events`](#monitor_events)
   - [`orchestrate_reverse_task`](#orchestrate_reverse_task)
   - [`pause`](#pause)
+  - [`probe_runtime_capabilities`](#probe_runtime_capabilities)
+  - [`prune_task_artifacts`](#prune_task_artifacts)
   - [`recommend_next_step`](#recommend_next_step)
   - [`recommend_parameter_workflow`](#recommend_parameter_workflow)
   - [`record_reverse_evidence`](#record_reverse_evidence)
@@ -192,6 +208,14 @@ Common fields include `schemaVersion`, `responseSummary`, `diagnostics`, `outcom
 
 - `pageIdx`
 - `deviceName`
+
+### `export_diagnostic_bundle`
+
+**Description:** Export a compact support bundle with environment, AI runtime, browser, and setup diagnostics.
+
+**Parameters:**
+
+- `remoteDebuggingUrl`
 
 ### `find_clickable_elements`
 
@@ -281,6 +305,35 @@ Common fields include `schemaVersion`, `responseSummary`, `diagnostics`, `outcom
 - `selector`
 - `all`
 - `limit`
+
+### `record_page_flow`
+
+**Description:** Persist a page interaction flow draft for later replay and evidence reuse.
+
+**Parameters:**
+
+- `taskId`
+- `name`
+- `actions`
+
+### `repair_browser_connection`
+
+**Description:** Diagnose Chrome remote-debugging connectivity and return concrete repair commands.
+
+**Parameters:**
+
+- `browserUrl`
+- `wsEndpoint`
+- `remoteDebuggingUrl`
+- `checkReachability`
+
+### `replay_page_flow`
+
+**Description:** Replay recorded page flow actions through PageController.
+
+**Parameters:**
+
+- `actions`
 
 ### `scroll_page`
 
@@ -392,6 +445,16 @@ Common fields include `schemaVersion`, `responseSummary`, `diagnostics`, `outcom
 - `direction`
 - `targetPageIdx`
 
+### `export_har_snapshot`
+
+**Description:** Export selected page network requests into a compact HAR-like snapshot for offline analysis.
+
+**Parameters:**
+
+- `targetPageIdx`
+- `includePreservedRequests`
+- `urlFilter`
+
 ### `get_websocket_message`
 
 **Description:** Gets a single WebSocket message by its frame index. Use get_websocket_messages or analyze_websocket_messages first to find the frame index.
@@ -415,6 +478,14 @@ Common fields include `schemaVersion`, `responseSummary`, `diagnostics`, `outcom
 - `pageIdx`
 - `targetPageIdx`
 - `show_content`
+
+### `infer_websocket_schema`
+
+**Description:** Infer JSON field types, message type distribution, and non-JSON counts from WebSocket messages.
+
+**Parameters:**
+
+- `messages`
 
 ### `list_websocket_connections`
 
@@ -441,6 +512,17 @@ Common fields include `schemaVersion`, `responseSummary`, `diagnostics`, `outcom
 - `targetPageIdx`
 - `resourceTypes`
 - `includePreservedRequests`
+
+### `trace_request_to_code`
+
+**Description:** Trace a captured network request to initiator stack frames and optional static code candidates.
+
+**Parameters:**
+
+- `reqid`
+- `targetPageIdx`
+- `parameterNames`
+- `files`
 
 ## Debugging
 
@@ -502,6 +584,15 @@ so returned values have to JSON-serializable.
 
 ## JS Reverse Engineering
 
+### `analyze_source_maps`
+
+**Description:** Parse a source map and summarize original sources, embedded content coverage, and likely reverse targets.
+
+**Parameters:**
+
+- `sourceMapContent`
+- `sourceMapUrl`
+
 ### `analyze_target`
 
 **Description:** One-shot reverse workflow: collect code, run security/crypto analysis, optional deobfuscation, and hook timeline correlation.
@@ -511,6 +602,7 @@ so returned values have to JSON-serializable.
 - `url`
 - `topN`
 - `useAI`
+- `aiMode`
 - `runDeobfuscation`
 - `hookPreset`
 - `autoInjectHooks`
@@ -520,6 +612,17 @@ so returned values have to JSON-serializable.
 - `maxFingerprints`
 - `autoReplayActions`
 - `collect`
+
+### `auto_rebuild_fix_loop`
+
+**Description:** Create a resumable env-fix loop plan from runtime errors and observed capabilities.
+
+**Parameters:**
+
+- `taskId`
+- `runtimeError`
+- `observedCapabilities`
+- `maxIterations`
 
 ### `breakpoint`
 
@@ -615,6 +718,15 @@ so returned values have to JSON-serializable.
 - `runtimeError`
 - `observedCapabilities`
 
+### `diff_session_state`
+
+**Description:** Compare cookies, localStorage, and sessionStorage snapshots before and after a page action.
+
+**Parameters:**
+
+- `before`
+- `after`
+
 ### `evaluate_on_callframe`
 
 **Description:** Evaluates a JavaScript expression in the context of a specific call frame while paused. This allows you to inspect variables and execute code in the paused scope.
@@ -632,6 +744,16 @@ so returned values have to JSON-serializable.
 
 - `stage`
 - `includeDocs`
+
+### `export_function_slice`
+
+**Description:** Build a minimal function slice draft with direct helper dependencies and a Node env shim.
+
+**Parameters:**
+
+- `code`
+- `functionName`
+- `dependencyNames`
 
 ### `export_portable_bundle`
 
@@ -706,6 +828,18 @@ so returned values have to JSON-serializable.
 - `contextChars`
 - `occurrence`
 - `caseSensitive`
+
+### `generate_parameter_report`
+
+**Description:** Generate a concise parameter-chain report from target, candidates, evidence, and next steps.
+
+**Parameters:**
+
+- `targetUrl`
+- `parameterNames`
+- `candidateFunctions`
+- `evidence`
+- `nextSteps`
 
 ### `get_hook_data`
 
@@ -867,6 +1001,27 @@ so returned values have to JSON-serializable.
 
 **Description:** List available stealth presets.
 
+### `list_task_artifacts`
+
+**Description:** List files, sizes, and update times for a reverse task artifact directory.
+
+**Parameters:**
+
+- `taskId`
+
+### `locate_candidate_functions`
+
+**Description:** Score likely signature/token/request functions from code files, params, headers, and target URL hints.
+
+**Parameters:**
+
+- `targetUrl`
+- `parameterNames`
+- `headerNames`
+- `keywords`
+- `files`
+- `maxCandidates`
+
 ### `locate_signature_function`
 
 **Description:** Collect candidate scripts and rank likely signature-generation functions for a target parameter.
@@ -961,6 +1116,23 @@ so returned values have to JSON-serializable.
 **Parameters:**
 
 - `pageIdx`
+
+### `probe_runtime_capabilities`
+
+**Description:** Probe browser runtime capabilities and compare them with Node rebuild assumptions.
+
+**Parameters:**
+
+- `targetPageIdx`
+
+### `prune_task_artifacts`
+
+**Description:** Remove old task artifact directories by age, with dry-run support by default.
+
+**Parameters:**
+
+- `olderThanDays`
+- `dryRun`
 
 ### `recommend_next_step`
 
@@ -1181,6 +1353,7 @@ so returned values have to JSON-serializable.
 
 - `code`
 - `focus`
+- `aiMode`
 
 ### `unhook_function`
 

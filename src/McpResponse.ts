@@ -368,6 +368,24 @@ export class McpResponse implements Response {
     });
   }
 
+  handleWithoutContext(toolName: string): Array<TextContent | ImageContent> {
+    const response = [`# ${toolName} response`];
+    for (const line of this.#textResponseLines) {
+      response.push(line);
+    }
+    const text: TextContent = {
+      type: 'text',
+      text: response.join('\n'),
+    };
+    const images: ImageContent[] = this.#images.map(imageData => {
+      return {
+        type: 'image',
+        ...imageData,
+      } as const;
+    });
+    return [text, ...images];
+  }
+
   format(
     toolName: string,
     context: McpContext,

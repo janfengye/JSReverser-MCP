@@ -19,6 +19,7 @@ import * as jshookDomTools from '../build/src/tools/dom.js';
 import * as frameTools from '../build/src/tools/frames.js';
 import * as jshookHookTools from '../build/src/tools/hook.js';
 import * as networkTools from '../build/src/tools/network.js';
+import {optimizationTools} from '../build/src/tools/optimizations.js';
 import * as orchestratorTools from '../build/src/tools/orchestrator.js';
 import * as jshookPageTools from '../build/src/tools/page.js';
 import * as pagesTools from '../build/src/tools/pages.js';
@@ -48,6 +49,7 @@ function allTools(): ToolDef[] {
     ...Object.values(diagnosticsTools),
     ...Object.values(frameTools),
     ...Object.values(networkTools),
+    ...optimizationTools,
     ...Object.values(pagesTools),
     ...Object.values(screenshotTools),
     ...Object.values(scriptTools),
