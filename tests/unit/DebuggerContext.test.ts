@@ -24,7 +24,7 @@ class FakeCDPSession {
     const arr = this.#handlers.get(event) ?? [];
     this.#handlers.set(
       event,
-      arr.filter((h) => h !== handler),
+      arr.filter(h => h !== handler),
     );
   }
 
@@ -44,6 +44,33 @@ class FakeCDPSession {
 }
 
 describe('DebuggerContext auto recovery', () => {
+  it('resolves waitForPause after Debugger.paused event', async () => {
+    const context = new DebuggerContext();
+    const client = new FakeCDPSession();
+    await context.enable(client as any);
+
+    const waitPromise = context.waitForPause(1000);
+
+    client.emit('Debugger.paused', {
+      reason: 'other',
+      hitBreakpoints: ['bp-1'],
+      callFrames: [
+        {
+          callFrameId: 'cf-1',
+          functionName: 'fn',
+          url: 'https://a.js',
+          location: {scriptId: 's1', lineNumber: 1, columnNumber: 0},
+          scopeChain: [],
+          this: {type: 'object'},
+        },
+      ],
+    });
+
+    const pausedState = await waitPromise;
+    assert.strictEqual(pausedState.isPaused, true);
+    assert.strictEqual(pausedState.callFrames[0]?.functionName, 'fn');
+  });
+
   it('auto resumes and removes breakpoint when same breakpoint loops', async () => {
     const context = new DebuggerContext();
     const client = new FakeCDPSession();
@@ -68,12 +95,20 @@ describe('DebuggerContext auto recovery', () => {
     client.emit('Debugger.paused', pausedEvent);
     client.emit('Debugger.paused', pausedEvent);
     client.emit('Debugger.paused', pausedEvent);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise(resolve => setTimeout(resolve, 0));
 
-    const resumeCalls = client.calls.filter((x) => x.method === 'Debugger.resume');
-    const removeCalls = client.calls.filter((x) => x.method === 'Debugger.removeBreakpoint');
+    const resumeCalls = client.calls.filter(
+      x => x.method === 'Debugger.resume',
+    );
+    const removeCalls = client.calls.filter(
+      x => x.method === 'Debugger.removeBreakpoint',
+    );
     assert.ok(resumeCalls.length >= 1);
-    assert.ok(removeCalls.some((x) => (x.params as {breakpointId?: string})?.breakpointId === 'bp-1'));
+    assert.ok(
+      removeCalls.some(
+        x => (x.params as {breakpointId?: string})?.breakpointId === 'bp-1',
+      ),
+    );
 
     const recovery = context.getLastAutoRecoveryEvent();
     assert.ok(recovery);

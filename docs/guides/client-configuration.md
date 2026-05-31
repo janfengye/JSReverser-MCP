@@ -8,6 +8,36 @@
 - 如果你要复用已经打开的浏览器，默认 remote debugging 地址使用 `http://127.0.0.1:9222`
 - 外部 AI 配置统一通过 MCP server 的 `env` 传入
 
+建议：
+
+- 配完 MCP server 后，先跑一次 `--doctor`
+- 接入 MCP 后，第一条工具调用优先用 `diagnose_environment`
+- 真正开始页面取证前，再用 `check_browser_health`
+
+## 工具暴露模式
+
+默认配置不写 `--toolProfile`，等价于 `--toolProfile compact`。
+`compact` 只暴露 47 个高频工具，目的是减少 MCP tool list 进入模型上下文时的 token 占用。
+这不是缺工具；低频手工调试工具只是默认隐藏。
+
+需要全量工具时，在 `args` 里加入：
+
+```json
+"--toolProfile",
+"full"
+```
+
+`full` 会暴露全部 94 个工具。
+适合需要暂停、单步、断点、WebSocket 细节、DOM 细调等深度人工调试场景。
+
+成功响应默认使用 `--traceOutput errors`，只在错误响应中携带 `traceId`。
+如果你需要每次成功响应也带 `traceId`，在 `args` 里加入：
+
+```json
+"--traceOutput",
+"all"
+```
+
 ## 最常用完整模板
 
 如果你只是想先快速跑起来，推荐直接使用“接管已打开浏览器 + Gemini API”这一份：
@@ -15,7 +45,7 @@
 ```json
 {
   "mcpServers": {
-    "js-reverse": {
+    "jsreverser-mcp": {
       "command": "node",
       "args": [
         "/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js",
@@ -52,14 +82,18 @@
 ```json
 {
   "mcpServers": {
-    "js-reverse": {
+    "jsreverser-mcp": {
       "command": "node",
-      "args": [
-        "/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js"
-      ]
+      "args": ["/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js"]
     }
   }
 }
+```
+
+配完后建议先本地执行一次：
+
+```bash
+node /ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js --doctor
 ```
 
 #### 接管已打开浏览器
@@ -67,7 +101,7 @@
 ```json
 {
   "mcpServers": {
-    "js-reverse": {
+    "jsreverser-mcp": {
       "command": "node",
       "args": [
         "/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js",
@@ -84,7 +118,7 @@
 ```json
 {
   "mcpServers": {
-    "js-reverse": {
+    "jsreverser-mcp": {
       "command": "node",
       "args": [
         "/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js",
@@ -106,7 +140,7 @@
 ```json
 {
   "mcpServers": {
-    "js-reverse": {
+    "jsreverser-mcp": {
       "command": "node",
       "args": [
         "/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js",
@@ -128,7 +162,7 @@
 ```json
 {
   "mcpServers": {
-    "js-reverse": {
+    "jsreverser-mcp": {
       "command": "node",
       "args": [
         "/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js",
@@ -150,7 +184,7 @@
 ```json
 {
   "mcpServers": {
-    "js-reverse": {
+    "jsreverser-mcp": {
       "command": "node",
       "args": [
         "/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js",
@@ -171,7 +205,13 @@
 ### 最简单配置
 
 ```bash
-claude mcp add js-reverse node /ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js
+claude mcp add jsreverser-mcp node /ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js
+```
+
+加完后建议先本地确认：
+
+```bash
+node /ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js --doctor
 ```
 
 ### 推荐配置思路
@@ -184,11 +224,11 @@ claude mcp add js-reverse node /ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js
 Claude API：
 
 ```toml
-[mcp_servers.js-reverse]
+[mcp_servers.jsreverser-mcp]
 command = "node"
 args = ["/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js"]
 
-[mcp_servers.js-reverse.env]
+[mcp_servers.jsreverser-mcp.env]
 DEFAULT_LLM_PROVIDER = "anthropic"
 ANTHROPIC_API_KEY = "your_key"
 ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022"
@@ -197,11 +237,11 @@ ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022"
 Gemini API：
 
 ```toml
-[mcp_servers.js-reverse]
+[mcp_servers.jsreverser-mcp]
 command = "node"
 args = ["/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js"]
 
-[mcp_servers.js-reverse.env]
+[mcp_servers.jsreverser-mcp.env]
 DEFAULT_LLM_PROVIDER = "gemini"
 GEMINI_API_KEY = "your_key"
 GEMINI_MODEL = "gemini-2.0-flash-exp"
@@ -210,11 +250,11 @@ GEMINI_MODEL = "gemini-2.0-flash-exp"
 OpenAI API：
 
 ```toml
-[mcp_servers.js-reverse]
+[mcp_servers.jsreverser-mcp]
 command = "node"
 args = ["/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js"]
 
-[mcp_servers.js-reverse.env]
+[mcp_servers.jsreverser-mcp.env]
 DEFAULT_LLM_PROVIDER = "openai"
 OPENAI_API_KEY = "your_key"
 OPENAI_MODEL = "gpt-4o"
@@ -223,13 +263,13 @@ OPENAI_MODEL = "gpt-4o"
 ### 接管已打开的 Chrome
 
 ```bash
-claude mcp add js-reverse node /ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js -- --browserUrl http://127.0.0.1:9222
+claude mcp add jsreverser-mcp node /ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js -- --browserUrl http://127.0.0.1:9222
 ```
 
 如果你本地已经固定开着远程调试端口，也可以改用：
 
 ```bash
-claude mcp add js-reverse node /ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js -- --autoConnect
+claude mcp add jsreverser-mcp node /ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js -- --autoConnect
 ```
 
 ## Cursor
@@ -248,7 +288,7 @@ claude mcp add js-reverse node /ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js 
 ```json
 {
   "mcpServers": {
-    "js-reverse": {
+    "jsreverser-mcp": {
       "command": "node",
       "args": [
         "/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js",
@@ -332,7 +372,7 @@ Codex 使用 `config.toml`。
 ### 最简单配置
 
 ```toml
-[mcp_servers.js-reverse]
+[mcp_servers.jsreverser-mcp]
 command = "node"
 args = ["/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js"]
 ```
@@ -340,7 +380,7 @@ args = ["/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js"]
 ### 接管已打开的 Chrome
 
 ```toml
-[mcp_servers.js-reverse]
+[mcp_servers.jsreverser-mcp]
 command = "node"
 args = [
   "/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js",
@@ -352,7 +392,7 @@ args = [
 ### 自动接管本机浏览器
 
 ```toml
-[mcp_servers.js-reverse]
+[mcp_servers.jsreverser-mcp]
 command = "node"
 args = [
   "/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js",
@@ -365,11 +405,11 @@ args = [
 Gemini API：
 
 ```toml
-[mcp_servers.js-reverse]
+[mcp_servers.jsreverser-mcp]
 command = "node"
 args = ["/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js"]
 
-[mcp_servers.js-reverse.env]
+[mcp_servers.jsreverser-mcp.env]
 DEFAULT_LLM_PROVIDER = "gemini"
 GEMINI_API_KEY = "your_key"
 GEMINI_MODEL = "gemini-2.0-flash-exp"
@@ -378,7 +418,7 @@ GEMINI_MODEL = "gemini-2.0-flash-exp"
 Claude API：
 
 ```toml
-[mcp_servers.js-reverse]
+[mcp_servers.jsreverser-mcp]
 command = "node"
 args = [
   "/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js",
@@ -386,7 +426,7 @@ args = [
   "http://127.0.0.1:9222"
 ]
 
-[mcp_servers.js-reverse.env]
+[mcp_servers.jsreverser-mcp.env]
 DEFAULT_LLM_PROVIDER = "anthropic"
 ANTHROPIC_API_KEY = "your_key"
 ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022"
@@ -395,7 +435,7 @@ ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022"
 OpenAI API：
 
 ```toml
-[mcp_servers.js-reverse]
+[mcp_servers.jsreverser-mcp]
 command = "node"
 args = [
   "/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js",
@@ -403,7 +443,7 @@ args = [
   "http://127.0.0.1:9222"
 ]
 
-[mcp_servers.js-reverse.env]
+[mcp_servers.jsreverser-mcp.env]
 DEFAULT_LLM_PROVIDER = "openai"
 OPENAI_API_KEY = "your_key"
 OPENAI_MODEL = "gpt-4o"
@@ -412,7 +452,7 @@ OPENAI_MODEL = "gpt-4o"
 Gemini CLI：
 
 ```toml
-[mcp_servers.js-reverse]
+[mcp_servers.jsreverser-mcp]
 command = "node"
 args = [
   "/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js",
@@ -420,7 +460,7 @@ args = [
   "http://127.0.0.1:9222"
 ]
 
-[mcp_servers.js-reverse.env]
+[mcp_servers.jsreverser-mcp.env]
 DEFAULT_LLM_PROVIDER = "gemini"
 GEMINI_CLI_PATH = "gemini-cli"
 ```
@@ -438,7 +478,7 @@ GEMINI_CLI_PATH = "gemini-cli"
 1. 打开一个已知页面
 2. 调用 `list_pages`
 3. 调用 `list_scripts`
-4. 调用 `list_network_requests`
+4. 调用 `network_request`，传 `action="list"`
 
 如果三者都能返回你当前页面对应的信息，说明配置已经基本正确。
 
@@ -447,3 +487,26 @@ GEMINI_CLI_PATH = "gemini-cli"
 5. 调用 `understand_code` 分析一小段代码
 
 如果返回 provider 未配置错误，通常说明 MCP server 的 `env` 没有传进去，而不是工具本身有问题。
+
+## 常见配置问题
+
+### `tools: none`
+
+`tools: none` 不是 compact 模式。compact 仍会暴露 47 个高频工具，full 会暴露全部 94 个工具。
+
+如果客户端显示 none，优先检查：
+
+- `npm run build` 是否已经成功执行
+- `args` 里是否使用绝对路径 `/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js`
+- 客户端是否在改完配置后完全重启
+- 本地执行 `node /ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js --doctor` 是否正常
+
+更多排查见 [docs/guides/troubleshooting.md](troubleshooting.md)。
+
+### AI 和 `useAI`
+
+`useAI` 是工具调用参数，不需要也不能配成环境变量。
+
+- `understand_code` 会先做本地静态分析；AI 不可用时会回退，并通过 `aiRuntime` 暴露原因
+- `detect_crypto` 只有在调用参数里传 `useAI=true` 时才启用 AI 增强
+- 外部 AI provider 通过 MCP server 的 `env` 配置，例如 `DEFAULT_LLM_PROVIDER` 和对应 API key

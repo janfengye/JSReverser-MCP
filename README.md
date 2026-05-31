@@ -46,6 +46,19 @@
 - 真实 `artifacts/tasks/<task-id>/` 默认视为本地私有任务目录
 - Git 默认只提交 `artifacts/tasks/_TEMPLATE/`
 
+### 参数蓝图库
+
+公开参数方法已沉淀到 [docs/knowledge/parameter-blueprints/](docs/knowledge/parameter-blueprints/)，用于替代旧的可运行 case 入口。查看和贡献方式：
+
+```bash
+node build/src/index.js --list-parameter-workflows
+node build/src/index.js --show-parameter-workflow jd-h5st
+node build/src/index.js --export-parameter-workflow-template
+node build/src/index.js --validate-parameter-workflow docs/knowledge/parameter-blueprints/jd-h5st
+```
+
+贡献规范见 [docs/guides/parameter-workflow-contribution.md](docs/guides/parameter-workflow-contribution.md)。
+
 ## 支持的能力
 
 ### 页面观察与脚本定位
@@ -91,6 +104,9 @@
 补看页面运行状态、控制台输出和本地状态依赖。
 
 - `check_browser_health`：检查浏览器连接和当前页是否可控，适合作为起手验证。
+- `diagnose_environment`：输出 Node、浏览器、路径和依赖状态，适合第一次启动建议和故障排查。
+- `recommend_next_step`：根据当前证据推荐下一步动作。
+- `explain_reverse_stage`：解释当前逆向阶段、输入要求和退出条件。
 - `list_console_messages`：查看当前页面 console 输出，适合回看 hook 和 trace 日志。
 - `get_storage`：读取 cookie、`localStorage`、`sessionStorage`，确认状态依赖。
 - `evaluate_script`：在当前选中 frame 内执行一段函数，做小范围运行时验证。
@@ -119,7 +135,12 @@
 - `navigate_page`：跳转、回退、刷新当前页面。
 - `query_dom`：查询页面元素，确认选择器和节点状态。
 - `click_element`：按选择器触发点击，复现页面动作。
+- `hover_element` / `select_option`：处理菜单悬停和原生下拉框选择。
 - `type_text`：向输入框写入文本，驱动表单交互。
+- `press_key` / `upload_file`：补齐键盘提交和文件上传场景。
+- `scroll_page` / `wait_for_network_idle`：稳定触发懒加载和请求结束后的取证。
+- `set_viewport` / `emulate_device`：复现移动端或特定视口下的签名链路。
+- `get_all_links`：快速盘点页面链接，辅助发现跳转入口。
 - `take_screenshot`：截取页面当前状态，保留可视化证据。
 
 ### 深度分析
@@ -138,9 +159,43 @@
 - `dump_session_state`：把会话快照导出为 JSON 文件，便于持久化。
 - `load_session_state`：从已有 JSON 或字符串重新载入会话快照。
 
+### 逆向任务编排与 Agent 消费
+
+- `start_reverse_task` / `create_reverse_task_from_request`：从目标、请求或页面证据创建 task artifact，供后续 summarize / progress / orchestration 复用。
+- `manage_reverse_task`：默认入口就是 `manage_reverse_task`，支持 `get / summarize` 以及 `archive / restore / search / tag / prune / compare`。
+- `orchestrate_reverse_task`：按阶段推进观察、采样、重建、验证和提纯，输出 `recommendedStrategy`、`agentGuidance`、`fallbackPlan` 和 `skipSteps`。
+- `run_reverse_agent`：提供面向 agent 的一站式任务运行入口。
+- `query_reverse_task`：读取 compact 摘要、下一步建议、`outputMode`、`artifacts`、`patchSuggestions`、`evidenceAggregates` 和可续跑 payload。
+- `get_rebuild_health_report`：汇总 local rebuild 健康状态，辅助 env-fix。
+- `export_rebuild_bundle` 支持 portable bundle / replay bundle 导出，便于把 `env-pass` 结果交给后续纯算法提取。
+
+CLI cheatsheet：
+
+```bash
+node build/src/index.js --doctor
+node build/src/index.js --manageReverseTask list
+node build/src/index.js --manageReverseTask get --taskId <taskId>
+node build/src/index.js --manageReverseTask summarize --taskId <taskId>
+node build/src/index.js --manageReverseTask progress --taskId <taskId>
+node build/src/index.js --manageReverseTask search --query sign --tag jd
+node build/src/index.js --manageReverseTask compare --taskId <taskId> --otherTaskId <otherTaskId>
+node build/src/index.js --orchestrateReverseTask <taskId>
+node build/src/index.js --orchestrateReverseTask <taskId> --execute --resume
+node build/src/index.js --orchestrateReverseTask <taskId> --strategy env-fix
+node build/src/index.js --orchestrateReverseTask <taskId> --executionOverrides '{"resume":true}'
+node build/src/index.js --runReverseAgent <taskId>
+```
+
+更多细节见：
+
+- [docs/guides/reverse-task-orchestration.md](docs/guides/reverse-task-orchestration.md)
+- [docs/guides/mcp-agent-quick-reference.md](docs/guides/mcp-agent-quick-reference.md)
+- [docs/guides/mcp-client-auto-resume-example.md](docs/guides/mcp-client-auto-resume-example.md)
+- [docs/reference/reverse-agent-response.schema.json](docs/reference/reverse-agent-response.schema.json)
+- [docs/reference/reverse-agent-schema-versioning.md](docs/reference/reverse-agent-schema-versioning.md)
+
 完整参数说明见 [docs/reference/tool-reference.md](docs/reference/tool-reference.md)。
 按逆向流程选工具可继续看 [docs/reference/reverse-workflow.md](docs/reference/reverse-workflow.md)。
-
 
 ### 外部 AI 怎么配置
 
@@ -229,7 +284,7 @@ GEMINI_CLI_PATH=gemini-cli
 
 如果没配外部 AI，典型影响是：
 
-- `understand_code` 会直接报 provider 未配置
+- `understand_code` 会先返回本地静态分析结果，并在 `aiRuntime` 里提示 provider / CLI fallback 状态
 - `detect_crypto(useAI=true)` 会退回本地分析或忽略 AI 增强
 - `deobfuscate_code` 仍可跑，但某些高难度混淆的解释和清理质量会下降
 
@@ -285,12 +340,15 @@ GEMINI_CLI_PATH=gemini-cli
 参数链路沉淀遵循以下规则：
 
 1. 先读本地 task artifact
+
 - `artifacts/tasks/<task-id>/`
 
 2. 本地没有时再读抽象 case
+
 - `scripts/cases/*`
 
 3. 仍不足时按模板新建
+
 - `docs/reference/parameter-methodology-template.md`
 - `docs/reference/parameter-site-mapping-template.md`
 
@@ -307,12 +365,33 @@ GEMINI_CLI_PATH=gemini-cli
 - [docs/reference/reverse-artifacts.md](docs/reference/reverse-artifacts.md)
 - [docs/reference/env-patching.md](docs/reference/env-patching.md)
 
+## 第一次启动建议
+
+先运行 `npm ci` 和 `npm run build`，再用 `node build/src/index.js --doctor` 检查本地 Node、浏览器连接、路径和外部 AI 配置。
+
+## 工具暴露模式
+
+默认启动使用 `--toolProfile compact`。
+该模式只暴露 47 个高频工具，用来减少 MCP tool list 占用的 token。
+这不是缺工具，而是默认把低频手工调试工具隐藏起来。
+
+需要全量工具时，使用 `--toolProfile full`。
+`full` 会暴露全部 94 个工具，包括暂停、单步、断点、WebSocket 细节和 DOM 细调工具。
+深度人工调试、精确断点排查、WebSocket 消息深挖时再切换到 `full`。
+
+```bash
+node build/src/index.js --toolProfile full
+```
+
+成功响应默认使用 `--traceOutput errors`，只在错误响应中携带 `traceId`。
+需要每次成功响应也携带 `traceId` 时，使用 `--traceOutput all`。
+
 ## 3 分钟快速开始
 
 ### 1) 安装依赖并构建
 
 ```bash
-npm install
+npm ci
 npm run build
 ```
 
@@ -367,7 +446,9 @@ args = ["/ABSOLUTE/PATH/JSReverser-MCP/build/src/index.js"]
 
 ## 文档入口
 
-逆向相关任务开场先读：`docs/reference/reverse-bootstrap.md`。该入口会继续要求模型读取 `docs/reference/case-safety-policy.md`、`docs/reference/reverse-workflow.md`；若已进入 `env-pass` 后的提纯阶段，再读 `docs/reference/pure-extraction.md`。
+逆向相关任务开场先读：`docs/reference/reverse-bootstrap.md`。
+该入口会继续要求模型读取 `docs/reference/case-safety-policy.md`、`docs/reference/reverse-workflow.md`。
+若已进入 `env-pass` 后的提纯阶段，再读 `docs/reference/pure-extraction.md`。
 
 ### Guides
 
@@ -407,6 +488,8 @@ npm run coverage:full
 更多问题排查请看：
 
 - [docs/guides/browser-connection.md](docs/guides/browser-connection.md)
+- [docs/guides/client-configuration.md](docs/guides/client-configuration.md)
+- [docs/guides/troubleshooting.md](docs/guides/troubleshooting.md)
 
 ## 参考项目
 
@@ -414,6 +497,7 @@ npm run coverage:full
 
 - https://github.com/wuji66dde/jshook-skill
 - https://github.com/zhizhuodemao/js-reverse-mcp
+- https://github.com/ChromeDevTools/chrome-devtools-mcp
 
 ## License
 

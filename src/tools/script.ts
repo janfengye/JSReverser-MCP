@@ -36,6 +36,14 @@ so returned values have to JSON-serializable.`,
     readOnlyHint: false,
   },
   schema: {
+    pageIdx: zod
+      .number()
+      .int()
+      .min(0)
+      .optional()
+      .describe(
+        'Optional page index. When provided, runs in the target page main frame.',
+      ),
     function: zod.string().describe(
       `A JavaScript function declaration to be executed by the tool in the currently selected page.
 Example without arguments: \`() => {
@@ -52,7 +60,10 @@ Example with arguments: \`(el) => {
   handler: async (request, response, context) => {
     let fn: JSHandle<unknown> | undefined;
     try {
-      const frame = context.getSelectedFrame();
+      const frame =
+        request.params.pageIdx === undefined
+          ? context.getSelectedFrame()
+          : context.getPageByOptionalIdx(request.params.pageIdx).mainFrame();
       fn = await withTimeout(
         frame.evaluateHandle(`(${request.params.function})`),
         DEFAULT_SCRIPT_TIMEOUT,
@@ -89,11 +100,17 @@ export const injectPreloadScript = defineTool({
     readOnlyHint: false,
   },
   schema: {
-    script: zod.string().describe('JavaScript source to register for future document loads.'),
+    script: zod
+      .string()
+      .describe('JavaScript source to register for future document loads.'),
   },
   handler: async (request, response) => {
     const runtime = getJSHookRuntime();
-    await runtime.pageController.injectScriptOnNewDocument(request.params.script);
-    response.appendResponseLine('Preload script registered for future documents.');
+    await runtime.pageController.injectScriptOnNewDocument(
+      request.params.script,
+    );
+    response.appendResponseLine(
+      'Preload script registered for future documents.',
+    );
   },
 });

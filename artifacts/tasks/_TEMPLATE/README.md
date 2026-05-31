@@ -1,73 +1,84 @@
-# Task Template Contract
+# Reverse Task Template
 
-这个模板不是为了把所有任务都长成一模一样，而是为了防止任务目录逐步长成“主线、实验、历史兼容、依赖、证据”混在一起的状态。
+这个目录是 **task artifact 起手模板**。
 
-## 目标
+目标不是提供某个站点的现成实现，而是确保任意 reverse task 一开始就有：
 
-每个任务目录至少要回答 4 个问题：
+- 明确的任务元信息
+- 可追加的证据文件
+- 可迭代的本地 env rebuild 入口
+- 可持续修订的人类摘要
 
-1. 当前主线入口是什么？
-2. 哪些文件是实验性产物？
-3. 哪些文件已经归档，不应继续叠新逻辑？
-4. 哪些依赖是运行时必需，哪些只是本地开发辅助？
-
-## 推荐分层
+## 目录说明
 
 - `task.json`
-  - 任务元数据、目标、成功判定
-- `network.jsonl` / `scripts.jsonl` / `runtime-evidence.jsonl`
-  - 页面与运行时证据
-- `env/`
-  - 补环境入口与最小宿主
-- `run/`
-  - 当前可执行主线、校验、纯算实现、夹具、trace
-- `replay/`
-  - 页面动作复放
+  - 当前任务元信息、目标、阶段、成功判定
+- `network.jsonl`
+  - 关键请求 / 响应证据
+- `scripts.jsonl`
+  - 关键脚本 / initiator / 定位信息
+- `runtime-evidence.jsonl`
+  - hook、中间值、对象字段、环境线索
+- `timeline.jsonl`
+  - 每一轮“做了什么 / 观察到什么 / 下一步”
 - `report.md`
-  - 结果、首差异、升级边界
+  - 人类可读摘要，给 AI / 人续做
+- `env/`
+  - Node local rebuild 入口、env patch、polyfill、capture
+- `replay/`
+  - 页面触发动作序列
+- `run/`
+  - 本地运行、校验、trace、pure runtime 等执行脚本
 
-## run/ 继续细分时的建议
+## 使用约束
 
-如果 `run/` 文件开始明显增多，优先按职责拆成以下子目录：
+1. 先改 `task.json`，明确：
+   - `taskId`
+   - `targetUrl`
+   - `goal`
+   - `currentStage`
+   - `successCriteria`
 
-- `core/`
-  - 当前主线运行时、portable runtime、pure runtime
-- `verify/`
-  - 面向接口闭环的校验脚本
-- `trace/`
-  - 提纯前后的逆向取证与插桩脚本
-- `server/`
-  - 面向部署或直连调用的最小入口
-- `evidence/`
-  - 由 trace/verify 产出的摘要、夹具、基线
-- `legacy/`
-  - 旧入口归档，只保留回溯价值，不继续叠新逻辑
-- `vendor/`
-  - 页面原始脚本副本或固定外部脚本
+2. Observe 阶段至少补：
+   - `network.jsonl`
+   - `scripts.jsonl`
+   - `report.md`
 
-不是每个任务都必须有这些目录；只有当文件量和职责开始混杂时再拆。
+3. Capture 阶段至少补：
+   - `runtime-evidence.jsonl`
+   - 必要时 `replay/actions.json`
 
-## 强约束
+4. Rebuild / Patch 阶段持续更新：
+   - `env/*`
+   - `timeline.jsonl`
+   - `report.md`
 
-- 每个任务必须有一个“当前主入口”，并写进 `run/README.md`
-- 每个任务必须区分“主线文件”和“归档文件”
-- `legacy/` 只归档，不接新逻辑
-- 可执行主线不要同时保留多个等价顶层入口
-- 纯算法实现与 portable runtime 要和 trace/实验脚本分开
-- 运行时必需依赖不要混入 `.venv/`、缓存、`__pycache__/` 这类本地环境垃圾
+5. 真实任务目录默认本地保留，分享前先脱敏。
 
-## 对复杂任务的经验结论
+## 第一次接手任务时的 5 步起手顺序
 
-如果一个任务已经走到：
-- local rebuild 已通过
-- portable runtime 已可调用
-- pure algorithm 已开始提纯
-- Python port 或其他宿主迁移已存在
+1. 改 `task.json`
+   - 填 `taskId`、`targetUrl`、`goal`、`currentStage`
+   - 写清本轮成功判定
 
-那么最容易失控的点通常不是算法本身，而是：
-- 顶层入口越来越多
-- 旧 verify / trace / tool 脚本混在主线旁边
-- 基线、夹具、证据、工具输出没有分层
-- 本地虚拟环境和缓存被一起放进任务目录
+2. 写第一批 `network.jsonl`
+   - 至少记录目标请求或候选目标请求
 
-所以模板更应该约束“文件职责和归档边界”，而不是只给一个最小 demo。
+3. 写第一批 `scripts.jsonl`
+   - 至少记录 initiator、候选脚本或关键定位线索
+
+4. 初始化 `report.md`
+   - 先写 Current Stage / Confirmed / Unconfirmed / Next Step
+
+5. 再决定进入哪个阶段
+   - 证据还不够：继续 `Observe`
+   - 已有最小采样点：进入 `Capture`
+   - 已有稳定页面证据并要本地复现：进入 `Rebuild`
+
+如果这 5 步还没做完，不建议直接开始大规模 hook、补环境或 pure extraction。
+
+## 不要做的事
+
+- 不要把真实站点敏感值直接写进模板
+- 不要把模板当成公开 case
+- 不要只在对话里描述结论而不回写 artifact

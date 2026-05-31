@@ -88,7 +88,7 @@ curl http://127.0.0.1:9222/json/version
 2. 启动 MCP
 3. 调用 `list_pages`
 4. 看返回里是否出现你刚刚打开的页面
-5. 再调用 `list_network_requests` 或 `list_scripts`
+5. 再调用 `network_request(action="list")` 或 `list_scripts`
 
 如果能看到你当前页面的请求和脚本，说明接管成功。
 
@@ -98,3 +98,7 @@ curl http://127.0.0.1:9222/json/version
 - 配了 `browserUrl`，但 Chrome 没开 remote debugging，连接不会成功
 - `--browserUrl` 和 `--wsEndpoint` 不要同时配置
 - 已经接管远程 Chrome 时，不要再强制 MCP 自己起一个新浏览器
+- JSReverser-MCP 是 stdio MCP server，不是 HTTP Web 服务；没有项目主页需要访问
+- 目标业务网站地址不要填进 `--browserUrl`，这里只能填 Chrome remote debugging 地址
+
+更多排查见 [docs/guides/troubleshooting.md](troubleshooting.md)。

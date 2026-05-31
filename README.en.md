@@ -46,6 +46,19 @@ Notes:
 - Real `artifacts/tasks/<task-id>/` directories are treated as local/private task folders by default.
 - Git only tracks `artifacts/tasks/_TEMPLATE/` by default.
 
+### Parameter Blueprint Knowledge Base
+
+Public parameter methods are kept in the parameter blueprint knowledge base at `docs/knowledge/parameter-blueprints/`.
+
+```bash
+node build/src/index.js --list-parameter-workflows
+node build/src/index.js --show-parameter-workflow jd-h5st
+node build/src/index.js --export-parameter-workflow-template
+node build/src/index.js --validate-parameter-workflow docs/knowledge/parameter-blueprints/jd-h5st
+```
+
+Contribution rules: [docs/guides/parameter-workflow-contribution.md](docs/guides/parameter-workflow-contribution.md).
+
 ## Capabilities
 
 ### Page Observation and Script Discovery
@@ -119,7 +132,12 @@ Use the minimum page actions needed to reproduce a flow.
 - `navigate_page`
 - `query_dom`
 - `click_element`
+- `hover_element` / `select_option`
 - `type_text`
+- `press_key` / `upload_file`
+- `scroll_page` / `wait_for_network_idle`
+- `set_viewport` / `emulate_device`
+- `get_all_links`
 - `take_screenshot`
 
 ### Deep Analysis
@@ -137,6 +155,22 @@ Once code and runtime evidence are available:
 - `restore_session_state`
 - `dump_session_state`
 - `load_session_state`
+
+### Reverse Task Orchestration and Agent Consumption
+
+- `start_reverse_task` / `manage_reverse_task`: create, inspect, advance, and manage reverse-engineering tasks.
+- `orchestrate_reverse_task`: advance observation, sampling, rebuild, verification, and extraction stages.
+- `run_reverse_agent`: provide a one-shot task runner entry point for agents.
+- `query_reverse_task`: read compact summaries, next-step guidance, artifact indexes, and resumable payloads.
+- `export_rebuild_bundle` supports portable bundle and replay bundle exports for handing `env-pass` results to pure extraction work.
+
+More details:
+
+- [docs/guides/reverse-task-orchestration.md](docs/guides/reverse-task-orchestration.md)
+- [docs/guides/mcp-agent-quick-reference.md](docs/guides/mcp-agent-quick-reference.md)
+- [docs/guides/mcp-client-auto-resume-example.md](docs/guides/mcp-client-auto-resume-example.md)
+- [docs/reference/reverse-agent-response.schema.json](docs/reference/reverse-agent-response.schema.json)
+- [docs/reference/reverse-agent-schema-versioning.md](docs/reference/reverse-agent-schema-versioning.md)
 
 For full parameter details, see [docs/reference/tool-reference.md](docs/reference/tool-reference.md).
 For workflow-oriented tool selection, see [docs/reference/reverse-workflow.md](docs/reference/reverse-workflow.md).
@@ -195,6 +229,8 @@ Notes:
 - `DEFAULT_LLM_PROVIDER` selects the default provider.
 - `gemini` supports two modes: API mode when `GEMINI_API_KEY` is present, or CLI mode via `GEMINI_CLI_PATH`.
 - `openai` and `anthropic` require their own API keys.
+- `understand_code` still returns local static analysis when AI is unavailable and includes `aiRuntime` so clients can see provider or fallback status.
+- `useAI` is a tool parameter, not an environment variable. Pass it on tools such as `detect_crypto` when you want optional AI enhancement.
 
 ## Standard Task Layout
 
@@ -267,6 +303,23 @@ See:
 - [docs/reference/case-safety-policy.md](docs/reference/case-safety-policy.md)
 - [docs/reference/reverse-artifacts.md](docs/reference/reverse-artifacts.md)
 - [docs/reference/env-patching.md](docs/reference/env-patching.md)
+
+## Tool Exposure Modes
+
+The default startup mode is `--toolProfile compact`.
+This mode exposes 47 high-frequency tools to reduce MCP tool-list token usage.
+It does not mean tools are missing; low-frequency manual debugging tools are hidden by default.
+
+Use `--toolProfile full` when you need the complete tool set.
+`full` exposes all 94 tools, including pause, stepping, breakpoints, WebSocket details, and fine-grained DOM controls.
+Switch to `full` for deep manual debugging, precise breakpoint work, or WebSocket message inspection.
+
+```bash
+node build/src/index.js --toolProfile full
+```
+
+Successful responses default to `--traceOutput errors`, which keeps `traceId` metadata only on error responses.
+Use `--traceOutput all` when every successful response should include `traceId` metadata.
 
 ## 3-Minute Quick Start
 
@@ -367,6 +420,8 @@ npm run coverage:full
 See:
 
 - [docs/guides/browser-connection.md](docs/guides/browser-connection.md)
+- [docs/guides/client-configuration.md](docs/guides/client-configuration.md)
+- [docs/guides/troubleshooting.md](docs/guides/troubleshooting.md)
 
 ## Upstream References
 
@@ -375,6 +430,7 @@ Actual licenses such as MIT should be checked in the corresponding upstream repo
 
 - https://github.com/wuji66dde/jshook-skill
 - https://github.com/zhizhuodemao/js-reverse-mcp
+- https://github.com/ChromeDevTools/chrome-devtools-mcp
 
 ## License
 

@@ -234,15 +234,22 @@ export class McpContext implements Context {
     return this.#networkCollector.getIdForResource(request);
   }
 
-  getNetworkRequests(includePreservedRequests?: boolean): HTTPRequest[] {
-    const page = this.getSelectedPage();
+  getNetworkRequests(
+    includePreservedRequests?: boolean,
+    targetPageIdx?: number,
+  ): HTTPRequest[] {
+    const page = this.getPageByOptionalIdx(targetPageIdx);
     return this.#networkCollector.getData(page, includePreservedRequests);
   }
 
   getConsoleData(
     includePreservedMessages?: boolean,
+    pageOrPageIdx?: Page | number,
   ): Array<ConsoleMessage | Error | AggregatedIssue> {
-    const page = this.getSelectedPage();
+    const page =
+      typeof pageOrPageIdx === 'number'
+        ? this.getPageByIdx(pageOrPageIdx)
+        : (pageOrPageIdx ?? this.getSelectedPage());
     return this.#consoleCollector.getData(page, includePreservedMessages);
   }
 
@@ -252,8 +259,15 @@ export class McpContext implements Context {
     return this.#consoleCollector.getIdForResource(message);
   }
 
-  getConsoleMessageById(id: number): ConsoleMessage | Error | AggregatedIssue {
-    return this.#consoleCollector.getById(this.getSelectedPage(), id);
+  getConsoleMessageById(
+    id: number,
+    pageOrPageIdx?: Page | number,
+  ): ConsoleMessage | Error | AggregatedIssue {
+    const page =
+      typeof pageOrPageIdx === 'number'
+        ? this.getPageByIdx(pageOrPageIdx)
+        : (pageOrPageIdx ?? this.getSelectedPage());
+    return this.#consoleCollector.getById(page, id);
   }
 
   async newPage(): Promise<Page> {
@@ -273,8 +287,11 @@ export class McpContext implements Context {
     await page.close({runBeforeUnload: false});
   }
 
-  getNetworkRequestById(reqid: number): HTTPRequest {
-    return this.#networkCollector.getById(this.getSelectedPage(), reqid);
+  getNetworkRequestById(reqid: number, targetPageIdx?: number): HTTPRequest {
+    return this.#networkCollector.getById(
+      this.getPageByOptionalIdx(targetPageIdx),
+      reqid,
+    );
   }
 
   setNetworkConditions(conditions: string | null): void {
@@ -339,6 +356,10 @@ export class McpContext implements Context {
       throw new Error('No page found');
     }
     return page;
+  }
+
+  getPageByOptionalIdx(idx?: number): Page {
+    return idx === undefined ? this.getSelectedPage() : this.getPageByIdx(idx);
   }
 
   #dialogHandler = (dialog: Dialog): void => {
@@ -501,9 +522,7 @@ export class McpContext implements Context {
     mimeType: 'image/png' | 'image/jpeg' | 'image/webp',
   ): Promise<{filename: string}> {
     try {
-      const dir = await fs.mkdtemp(
-        path.join(os.tmpdir(), 'chrome-devtools-mcp-'),
-      );
+      const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'jsreverser-mcp-'));
 
       const filename = path.join(
         dir,
@@ -584,16 +603,19 @@ export class McpContext implements Context {
   /**
    * Get all WebSocket connections for the selected page.
    */
-  getWebSocketConnections(includePreservedData?: boolean): WebSocketData[] {
-    const page = this.getSelectedPage();
+  getWebSocketConnections(
+    includePreservedData?: boolean,
+    targetPageIdx?: number,
+  ): WebSocketData[] {
+    const page = this.getPageByOptionalIdx(targetPageIdx);
     return this.#webSocketCollector.getData(page, includePreservedData);
   }
 
   /**
    * Get a WebSocket connection by stable ID.
    */
-  getWebSocketById(wsid: number): WebSocketData {
-    const page = this.getSelectedPage();
+  getWebSocketById(wsid: number, targetPageIdx?: number): WebSocketData {
+    const page = this.getPageByOptionalIdx(targetPageIdx);
     return this.#webSocketCollector.getById(page, wsid);
   }
 
